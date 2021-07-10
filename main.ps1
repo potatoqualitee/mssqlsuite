@@ -23,10 +23,10 @@ if ("docker" -in $Install) {
       ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
       . $profile
       docker-machine ip default
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -d mcr.microsoft.com/mssql/server:2017-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-latest
       Write-Output "Docker finished running"
+      docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
-      vboxmanage controlvm "default" natpf1 "mssql,tcp,127.0.0.1,1433,,1433"
       docker ps -a
       docker-machine ip
       docker-machine ls
