@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Create variables for module cacher
+      - name: install it
         uses: potatoqualitee/sqlsuite@initial
         with:
           install: docker
