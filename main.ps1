@@ -7,12 +7,6 @@ param (
 if ("docker" -in $Install) {
    Write-Output "Installing docker"
    if ($ismacos) {
-      brew install docker-machine docker
-      /usr/local/opt/docker-machine/bin/docker-machine start default
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
-      Write-Output "Docker finished running"
-      Start-Sleep 5
-      docker ps -a
    }
 
    if ($islinux) {
@@ -25,7 +19,7 @@ if ("docker" -in $Install) {
 
       Start-Process -Wait -FilePath sqlsetup.exe -ArgumentList /qs, /x:setup
       .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
-      
+
       Start-Service MSSQLSERVER
    }
 
