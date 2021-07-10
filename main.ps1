@@ -12,7 +12,7 @@ if ("docker" -in $Install) {
       brew install docker docker-machine
       docker-machine create --driver virtualbox default
       docker-machine env default
-      # $profiledir = Split-Path $profile
+      $profiledir = Split-Path $profile
       if (-not (Test-Path $profiledir)) {
          mkdir $profiledir
       }
