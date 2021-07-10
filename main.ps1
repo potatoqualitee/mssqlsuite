@@ -37,11 +37,13 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      Write-Output "Pulling docker image"
-      docker pull microsoft/mssql-server-windows-developer
-      
-      Write-Output "Running docker image"
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
+      Write-Output "Downloading"
+      Import-Module BitsTransfer
+      Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
+      Write-Output "Installing"
+      Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+      Write-Output "Checking"
+      sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
    }
 
    Write-Output "Waiting for docker to start"
@@ -64,5 +66,20 @@ if ("sqlcmd" -in $Install) {
 
 if ("sqlpackage" -in $Install) {
    Write-Output "sqlpackage install"
-   Write-Output "jk"
+
+   if ($ismacos) {
+      curl "https://go.microsoft.com/fwlink/?linkid=2143659" -4 -sL -o '/tmp/sqlpackage.zip'
+      unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
+      chmod +x $HOME/sqlpackage/sqlpackage
+      sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
+      sqlpackage /version
+   }
+
+   if ($islinux) {
+      curl "https://go.microsoft.com/fwlink/?linkid=2143497" -4 -sL -o '/tmp/sqlpackage.zip'
+      unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
+      chmod +x $HOME/sqlpackage/sqlpackage
+      sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
+      sqlpackage /version
+   }
 }
