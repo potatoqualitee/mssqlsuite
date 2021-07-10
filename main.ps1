@@ -31,17 +31,25 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      docker pull microsoft/mssql-server-windows-developer
+      #docker pull microsoft/mssql-server-windows-developer
       #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
    #Write-Output "Waiting for docker to start"
-   Start-Sleep -Seconds 10
+   #Start-Sleep -Seconds 10
 }
 
 if ("sqlcmd" -in $Install) {
    Write-Output "sqlcmd install"
+
+   if ($ismacos) {
+      /usr/bin/ruby -e "$(curl - fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+      brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+      brew update
+      ACCEPT_EULA=y brew install --no-sandbox msodbcsql mssql-tools
+   }
    
+   Write-Output "sqlcmd is installed"
 }
 
 if ("sqlpackage" -in $Install) {
