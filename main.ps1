@@ -43,9 +43,9 @@ if ("docker" -in $Install) {
       Write-Output "Installing"
       Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
       Write-Output "Checking"
-      sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
+      # sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
       $sql = "SELECT 'np:\\.\pipe\' + CONVERT(NVARCHAR(128), SERVERPROPERTY('InstanceName')) + '\tsql\query' as servername"
-      sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql | Select-Object -Last 1
+      sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql | Select-Object -Last 1 -Skip 1
    }
 
    Write-Output "Waiting for docker to start"
