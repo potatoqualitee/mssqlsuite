@@ -11,7 +11,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: install it
+
+      - name: Run the action
         uses: potatoqualitee/sqlsuite@initial
         with:
           install: docker, sqlcmd
