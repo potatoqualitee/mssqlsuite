@@ -12,7 +12,7 @@ if ("docker" -in $Install) {
       brew install docker docker-machine
       docker-machine create --driver virtualbox default
       docker-machine env default
-      cat 'eval "$(docker-machine env default)"' >> ./eval.sh
+      echo 'eval $(/usr/local/bin/docker-machine env default)' >> ./eval.sh
       chmod +x ./eval.sh
       ./eval.sh
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
