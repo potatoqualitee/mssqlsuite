@@ -7,31 +7,31 @@ param (
 if ("docker" -in $Install) {
    Write-Output "docker install"
    if ($ismacos) {
-      brew install docker
-      # allow the app to run without confirmation
-      xattr -d -r com.apple.quarantine /Applications/Docker.app
-
-      # preemptively do docker.app's setup to avoid any gui prompts
-      sudo /bin/cp /Applications/Docker.app/Contents/Library/LaunchServices/com.docker.vmnetd /Library/PrivilegedHelperTools
-      sudo /bin/cp /Applications/Docker.app/Contents/Resources/com.docker.vmnetd.plist /Library/LaunchDaemons/
-      sudo /bin/chmod 544 /Library/PrivilegedHelperTools/com.docker.vmnetd
-      sudo /bin/chmod 644 /Library/LaunchDaemons/com.docker.vmnetd.plist
-      sudo /bin/launchctl load /Library/LaunchDaemons/com.docker.vmnetd.plist
-      open -g -a Docker.app
-      Start-Sleep 5
+      mkdir -p ~/.docker/machine/cache
+      curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
+      brew install docker docker-machine
+      docker-machine create --driver virtualbox default
+      docker-machine env default
+      $eval = docker-machine env default
+      Invoke-Expression $eval
+      $eval | Add-Content $profile
+      $eval | Add-Content "$home/.bashrc"
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      Write-Output "Waiting for docker to start"
+      Start-Sleep -Seconds 5
    }
 
    if ($islinux) {
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      Write-Output "Waiting for docker to start"
+      Start-Sleep -Seconds 5
    }
 
    if ($iswindows) {
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
+      Write-Output "Waiting for docker to start"
+      Start-Sleep -Seconds 5
    }
-   
-   Write-Output "Waiting for docker to start"
-   Start-Sleep -Seconds 10
 }
 
 if ("sqlcmd" -in $Install) {
