@@ -64,7 +64,7 @@ if ("sqlcmd" -in $Install) {
 
    if ($ismacos) {
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
-      brew update
+      #brew update
       $env:ACCEPT_EULA = 'Y'
       brew install msodbcsql17 mssql-tools
    }
