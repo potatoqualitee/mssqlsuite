@@ -20,15 +20,20 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
+      if (-not (Test-Path C:\temp)) {
+         mkdir C:\temp
+      }
+      Push-Location C:\temp
       $ProgressPreference = "SilentlyContinue"
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe -OutFile sqlsetup.exe
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.box -OutFile sqlsetup.box
-      Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:C:\sqlsetup
+      Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
       Get-ChildItem $PWD
       C:\sqlsetup\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
       Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
       Restart-Service MSSQLSERVER
       sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
+      Pop-Location
    }
 
    Write-Output "Waiting for docker to start"
@@ -69,5 +74,19 @@ if ("sqlpackage" -in $Install) {
 
    if ($iswindows) {
       choco install sqlpackage
+   }
+}
+
+if ("localdb" -in $Install) {
+   if ($iswindows) {
+      Write-Host "Downloading"
+      Import-Module BitsTransfer
+      Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
+      Write-Host "Installing"
+      Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+      Write-Host "Checking"
+      sqlcmd -l 60 -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
+   } else {
+      Write-Output "localdb cannot be isntalled on mac or linux"
    }
 }
