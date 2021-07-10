@@ -7,29 +7,12 @@ param (
 if ("docker" -in $Install) {
    Write-Output "Installing docker"
    if ($ismacos) {
-      mkdir -p ~/.docker/machine/cache
-      curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
-      brew install docker docker-machine
-      docker-machine create --driver virtualbox default
-      docker-machine env default
-      
-      $profiledir = Split-Path $profile
-      if (-not (Test-Path $profiledir)) {
-         mkdir $profiledir
-      }
-
-      docker-machine env default | Add-Content "$home/.bashrc"
-      docker-machine env default | Add-Content $profile
-      ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
-      . $profile
-      docker-machine ip default
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-latest
+      brew install docker-machine docker
+      sudo docker –version
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
-      docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
       docker ps -a
-      docker-machine ip
-      docker-machine ls
    }
 
    if ($islinux) {
