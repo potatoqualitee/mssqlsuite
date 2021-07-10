@@ -12,6 +12,10 @@ if ("docker" -in $Install) {
       brew install docker docker-machine
       docker-machine create --driver virtualbox default
       docker-machine env default
+      # $profiledir = Split-Path $profile
+      if (-not (Test-Path $profiledir)) {
+         mkdir $profiledir
+      }
       docker-machine env default | Add-Content $profile
       docker-machine env default | Add-Content "$home/.bashrc"
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
