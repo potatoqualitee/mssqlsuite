@@ -36,7 +36,7 @@ if ("docker" -in $Install) {
    }
 
    #Write-Output "Waiting for docker to start"
-   #Start-Sleep -Seconds 10
+   Start-Sleep -Seconds 10
 }
 
 if ("sqlcmd" -in $Install) {
