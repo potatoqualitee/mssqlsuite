@@ -3,7 +3,6 @@ param (
    [string[]]$Install,
    [string]$SaPassword
 )
-Write-Output "$install"
 
 if ("docker" -in $Install) {
    Write-Output "docker install"
