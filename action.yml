@@ -19,7 +19,7 @@ runs:
       run: |
         Write-Output "Getting variables for suite"
 
-        $params = [pscustomobject]@{
+        $params = @{
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.force }}"
         }
