@@ -25,7 +25,7 @@ if ("docker" -in $Install) {
       . $profile
       docker-machine ip default
       Start-Sleep 5
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2017-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server
       Write-Output "Docker finished running"
       docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
