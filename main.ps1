@@ -7,7 +7,7 @@ param (
 if ("docker" -in $Install) {
    Write-Output "docker install"
    if ($ismacos) {
-      brew cask install docker
+      brew install docker
       # allow the app to run without confirmation
       xattr -d -r com.apple.quarantine /Applications/Docker.app
 
