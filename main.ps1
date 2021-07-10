@@ -5,7 +5,7 @@ param (
 )
 
 if ("docker" -in $Install) {
-   Write-Output "docker install"
+   Write-Output "Installing docker"
    if ($ismacos) {
       mkdir -p ~/.docker/machine/cache
       curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
@@ -35,18 +35,16 @@ if ("docker" -in $Install) {
       #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
-   #Write-Output "Waiting for docker to start"
+   Write-Output "Waiting for docker to start"
    Start-Sleep -Seconds 10
 }
 
 if ("sqlcmd" -in $Install) {
-   Write-Output "sqlcmd install"
-
+   Write-Output "Installing sqlcmd"
    if ($ismacos) {
-      /usr/bin/ruby -e "$(curl - fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
       brew update
-      ACCEPT_EULA=y brew install --no-sandbox msodbcsql mssql-tools
+      'HOMEBREW_NO_ENV_FILTERING=1', 'ACCEPT_EULA=Y' brew install msodbcsql17 mssql-tools
    }
    
    Write-Output "sqlcmd is installed"
