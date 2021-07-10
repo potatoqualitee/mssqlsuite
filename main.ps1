@@ -37,7 +37,7 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      
+      docker run -d -p 1433:1433 -e "sa_password=$SaPassword" -e ACCEPT_EULA=Y microsoft/mssql-server-windows-developer
    }
 
    Write-Output "Waiting for docker to start"
