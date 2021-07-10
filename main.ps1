@@ -41,7 +41,7 @@ if ("docker" -in $Install) {
       docker pull microsoft/mssql-server-windows-developer
       
       Write-Output "Running docker image"
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer:2017-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
    Write-Output "Waiting for docker to start"
