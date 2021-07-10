@@ -19,22 +19,19 @@ if ("docker" -in $Install) {
       docker-machine env default | Add-Content $profile
       docker-machine env default | Add-Content "$home/.bashrc"
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
-      Write-Output "Waiting for docker to start"
-      Start-Sleep -Seconds 5
    }
 
    if ($islinux) {
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
-      Write-Output "Waiting for docker to start"
-      Start-Sleep -Seconds 5
    }
 
    if ($iswindows) {
       docker pull microsoft/mssql-server-windows-developer
       #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
-      Write-Output "Waiting for docker to start"
-      Start-Sleep -Seconds 5
    }
+   
+   Write-Output "Waiting for docker to start"
+   Start-Sleep -Seconds 10
 }
 
 if ("sqlcmd" -in $Install) {
