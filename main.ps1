@@ -26,8 +26,9 @@ if ("docker" -in $Install) {
       Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
       Get-ChildItem $PWD
       .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
-      
-      Start-Service MSSQLSERVER
+      Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
+      Restart-Service MSSQLSERVER
+      sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
    }
 
    Write-Output "Waiting for docker to start"
