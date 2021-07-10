@@ -46,7 +46,8 @@ if ("docker" -in $Install) {
       # sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
       $sql = "SELECT 'np:\\.\pipe\' + CONVERT(NVARCHAR(128), SERVERPROPERTY('InstanceName')) + '\tsql\query' as servername"
       $sqlinstance = (sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql | Select-Object -Last 1 -Skip 2).Trim()
-      reg add HKLM\SOFTWARE\Microsoft\MSSQLServer\Client\ConnectTo /v DSQUERY /d DBNETLIB /f
+      "DBNMPNTW,$sqlinstance"
+      # reg add HKLM\SOFTWARE\Microsoft\MSSQLServer\Client\ConnectTo /v DSQUERY /d DBNETLIB /f
       reg add HKLM\SOFTWARE\Microsoft\MSSQLServer\Client\ConnectTo /v localhost /d "DBNMPNTW,$sqlinstance" /f
       
       (sqlcmd -S "locahost" -Q $sql | Select-Object -Last 1 -Skip 2).Trim()
