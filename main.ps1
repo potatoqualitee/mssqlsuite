@@ -45,7 +45,7 @@ if ("docker" -in $Install) {
       Write-Output "Checking"
       sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
       $sql = "SELECT 'np:\\.\pipe\' + CONVERT(NVARCHAR(128), SERVERPROPERTY('InstanceName')) + '\tsql\query' as servername"
-      sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql
+      sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql | Select-Object -Last 1
    }
 
    Write-Output "Waiting for docker to start"
@@ -58,7 +58,6 @@ if ("sqlcmd" -in $Install) {
    if ($ismacos) {
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
       brew update
-      $env:HOMEBREW_NO_ENV_FILTERING = 1
       $env:ACCEPT_EULA = 'Y'
       brew install msodbcsql17 mssql-tools
    }
