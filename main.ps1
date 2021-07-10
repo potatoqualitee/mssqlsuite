@@ -24,6 +24,7 @@ if ("docker" -in $Install) {
       Get-Content $profile
       . $profile      
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      Start-Sleep 5
    }
 
    if ($islinux) {
@@ -31,8 +32,7 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      #docker pull microsoft/mssql-server-windows-developer
-      #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
    Write-Output "Waiting for docker to start"
