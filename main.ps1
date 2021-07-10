@@ -12,8 +12,7 @@ if ("docker" -in $Install) {
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 5
    } else {
-      Get-Command wslbash
-      wslbash docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      bash docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 5
    }
