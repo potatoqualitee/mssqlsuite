@@ -14,7 +14,7 @@ jobs:
       - name: install it
         uses: potatoqualitee/sqlsuite@initial
         with:
-          install: docker
+          install: docker, sqlcmd
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
