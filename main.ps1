@@ -20,7 +20,13 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      docker run -d -p 1433:1433 -e "sa_password=$SaPassword" -e ACCEPT_EULA=Y microsoft/mssql-server-windows-express
+      $ProgressPreference = "SilentlyContinue"
+      Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe -OutFile sqlsetup.exe
+
+      Start-Process -Wait -FilePath sqlsetup.exe -ArgumentList /qs, /x:setup
+      .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
+      
+      Start-Service MSSQLSERVER
    }
 
    Write-Output "Waiting for docker to start"
