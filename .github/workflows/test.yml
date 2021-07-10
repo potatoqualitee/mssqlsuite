@@ -1,8 +1,14 @@
 on: [push]
 
 jobs:
-  run-on-linux:
-    runs-on: ubuntu-latest
+  test-everywhere:
+    name: Test Action on all platforms
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+
     steps:
       - uses: actions/checkout@v2
       - name: Create variables for module cacher
@@ -12,36 +18,3 @@ jobs:
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
-
-      - name: Run sqlpackage
-        run: sqlpackage
-
-  run-on-mac:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Create variables for module cacher
-        uses: potatoqualitee/sqlsuite@initial
-        with:
-          install: docker
-
-      - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
-
-      - name: Run sqlpackage
-        run: sqlpackage
-
-  run-on-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Create variables for module cacher
-        uses: potatoqualitee/sqlsuite@initial
-        with:
-          install: docker
-
-      - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
-
-      - name: Run sqlpackage
-        run: sqlpackage
