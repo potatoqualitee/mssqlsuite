@@ -41,10 +41,13 @@ if ("docker" -in $Install) {
 
 if ("sqlcmd" -in $Install) {
    Write-Output "Installing sqlcmd"
+
    if ($ismacos) {
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
       brew update
-      'HOMEBREW_NO_ENV_FILTERING=1', 'ACCEPT_EULA=Y' brew install msodbcsql17 mssql-tools
+      $env:HOMEBREW_NO_ENV_FILTERING = 1
+      $env:ACCEPT_EULA = 'Y'
+      brew install msodbcsql17 mssql-tools
    }
    
    Write-Output "sqlcmd is installed"
