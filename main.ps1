@@ -8,8 +8,7 @@ if ("docker" -in $Install) {
    Write-Output "Installing docker"
    if ($ismacos) {
       brew install docker-machine docker
-      brew services start docker-machine
-      sudo docker –v
+      /usr/local/opt/docker-machine/bin/docker-machine start default
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       Start-Sleep 5
