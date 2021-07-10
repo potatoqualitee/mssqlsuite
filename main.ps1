@@ -12,7 +12,7 @@ if ("sqlcmd" -in $Install) {
    sudo apt-get update
    sudo apt-get install mssql-tools unixodbc-dev
    Write-Output 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bash_profile
-   source ~/.bashrc
+   bash source ~/.bashrc
 }
 
 if ("docker" -in $Install) {
