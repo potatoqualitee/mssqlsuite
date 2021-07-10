@@ -37,22 +37,7 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      Write-Output "Downloading"
-      Import-Module BitsTransfer
-      Start-BitsTransfer -Source https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -Destination SqlLocalDB.msi
-      Write-Output "Installing"
-      Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
-      Write-Output "Checking"
-      # sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
-      $sql = "SELECT '\\' + CONVERT(NVARCHAR(128), SERVERPROPERTY('InstanceName')) + '\pipe\tsql\query' as servername"
-      $sqlinstance = (sqlcmd -S "(localdb)\MSSQLLocalDB" -Q $sql | Select-Object -Last 1 -Skip 2).Trim()
-      "DBNMPNTW,$sqlinstance"
-      reg add HKLM\SOFTWARE\WOW6432Node\Microsoft\MSSQLServer\Client\ConnectTo /v DSQUERY /d DBNETLIB /f
-      reg add HKLM\SOFTWARE\WOW6432Node\Microsoft\MSSQLServer\Client\ConnectTo /v localhost /d "DBNMPNTW,$sqlinstance" /f
-      reg add HKLM\SOFTWARE\Microsoft\MSSQLServer\Client\ConnectTo /v DSQUERY /d DBNETLIB /f
-      reg add HKLM\SOFTWARE\Microsoft\MSSQLServer\Client\ConnectTo /v localhost /d "DBNMPNTW,$sqlinstance" /f
       
-      (sqlcmd -S "locahost" -Q $sql | Select-Object -Last 1 -Skip 2).Trim()
    }
 
    Write-Output "Waiting for docker to start"
@@ -89,5 +74,9 @@ if ("sqlpackage" -in $Install) {
       chmod +x $HOME/sqlpackage/sqlpackage
       sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
       sqlpackage /version
+   }
+
+   if ($iswindows) {
+      choco install sqlpackage
    }
 }
