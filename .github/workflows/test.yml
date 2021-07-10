@@ -1,0 +1,12 @@
+on: [push]
+
+jobs:
+  run-on-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create variables for module cacher
+        id: psmodulecache
+        uses: potatoqualitee/sqlsuite@initial
+        with:
+          install: sqlcmd, docker

@@ -1,0 +1,27 @@
+name: "SQL Server Suite"
+branding:
+  icon: "database"
+  color: "yellow"
+description: "Automatically install SQL Server suite of tools including sqlcmd, sqlpackage, containers and more"
+inputs:
+  install:
+    description: "The apps to install"
+    required: true
+  sa-password:
+    description: "The password for the SQL instance"
+    required: false
+    default: "dbatools.I0"
+runs:
+  using: "composite"
+  steps:
+    - id: psoutput
+      shell: pwsh
+      run: |
+        Write-Output "Getting variables for suite"
+
+        $params = [pscustomobject]@{
+            Install         = ("${{ inputs.install }}" -split ",").Trim()
+            SaPassword      = "${{ inputs.force }}"
+        }
+
+        ./main.ps1 @params
