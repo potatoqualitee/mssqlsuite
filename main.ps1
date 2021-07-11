@@ -17,6 +17,7 @@ if ("engine" -in $Install) {
       $profiledir = Split-Path $profile
       if (-not (Test-Path $profiledir)) {
          mkdir $profiledir
+         "" | Add-Content $profile
       }
 
       docker-machine env default | Add-Content "$home/.bashrc"
