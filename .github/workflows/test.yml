@@ -15,7 +15,7 @@ jobs:
       - name: Run the action
         uses: potatoqualitee/sqlsuite@initial
         with:
-          install: engine
+          install: engine, sqlclient, sqlpackage, localdb
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
