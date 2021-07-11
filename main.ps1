@@ -57,6 +57,7 @@ if ("engine" -in $Install) {
       Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
       Restart-Service MSSQLSERVER
       sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
+      sqlcmd -S localhost -q "ALTER LOGIN [sa] ENABLE"
       Pop-Location
    }
 }
