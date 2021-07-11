@@ -26,7 +26,7 @@ if ("engine" -in $Install) {
       . $profile
       docker-machine ip default
       Start-Sleep 5
-      docker run --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
