@@ -47,7 +47,7 @@ None
 
 ### Example workflows
 
-Installing everything on all OSes
+Create a SQL Server 2019 container and sqlpackage on Linux (the fastest runner, by far)
 
 ```yaml
 on: [push]
@@ -63,13 +63,13 @@ jobs:
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
+          install: sqlengine, sqlpackage
 
       - name: Run sqlclient
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
 ```
 
-Installing SQL Engine with a different sa password
+Installing everything on all OSes, plus using a different sa password
 
 ```yaml
 on: [push]
