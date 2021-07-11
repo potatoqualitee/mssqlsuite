@@ -2,7 +2,7 @@ name: "SQL Server Suite"
 branding:
   icon: "database"
   color: "yellow"
-description: "Automatically install SQL Server suite of tools including sqlcmd, sqlpackage, containers and more"
+description: "Automatically install SQL Server suite of tools including sqlcmd, sqlpackage, sql engine and more"
 inputs:
   install:
     description: "The apps to install"

@@ -1,5 +1,5 @@
 param (
-   [ValidateSet("sqlcmd","sqlpackage", "engine", "localdb")]
+   [ValidateSet("sqlclient","sqlpackage", "engine", "localdb")]
    [string[]]$Install,
    [string]$SaPassword,
    [switch]$ShowLog
@@ -71,9 +71,9 @@ if ("engine" -in $Install) {
    }
 }
 
-if ("sqlcmd" -in $Install) {
+if ("sqlclient" -in $Install) {
    if ($ismacos) {
-      Write-Output "Installing sqlcmd"
+      Write-Output "Installing sqlclient tools"
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
       $null = brew update
       $log = brew install msodbcsql17 mssql-tools
@@ -83,7 +83,7 @@ if ("sqlcmd" -in $Install) {
       }
    }
    
-   Write-Output "sqlcmd is installed"
+   Write-Output "sqlclient tools are installed"
 }
 
 if ("sqlpackage" -in $Install) {
