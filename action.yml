@@ -31,7 +31,7 @@ runs:
         $params = @{
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.sa-password }}"
-            ShowLog         = "`$${{ inputs.show-log }}"
+            ShowLog         = `$${{ inputs.show-log }}
         }
 
         ./main.ps1 @params
