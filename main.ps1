@@ -1,5 +1,5 @@
 param (
-   [ValidateSet("sqlcmd","sqlpackage", "docker")]
+   [ValidateSet("sqlcmd","sqlpackage", "engine", "localdb")]
    [string[]]$Install,
    [string]$SaPassword
 )
