@@ -32,7 +32,7 @@ if ("engine" -in $Install) {
       docker ps -a
       docker-machine ip
       docker-machine ls
-      docker logs -t sql
+      docker logs
    }
 
    if ($islinux) {
