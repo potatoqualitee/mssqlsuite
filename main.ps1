@@ -1,11 +1,11 @@
 param (
-   [ValidateSet("sqlclient","sqlpackage", "engine", "localdb")]
+   [ValidateSet("sqlclient","sqlpackage", "sqlengine", "localdb")]
    [string[]]$Install,
    [string]$SaPassword,
    [switch]$ShowLog
 )
 
-if ("engine" -in $Install) {
+if ("sqlengine" -in $Install) {
    Write-Output "Installing SQL Engine"
    if ($ismacos) {
       Write-Output "mac detected, installing docker then downloading a docker container"

@@ -8,7 +8,7 @@ inputs:
     description: "The apps to install"
     required: true
   sa-password:
-    description: "The password for the SQL instance"
+    description: "The sa password for the SQL instance"
     required: false
     default: "dbatools.I0"
   show-log:
