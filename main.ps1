@@ -62,10 +62,10 @@ if ("engine" -in $Install) {
 }
 
 if ("sqlcmd" -in $Install) {
-   Write-Output "Installing sqlcmd"
-
    if ($ismacos) {
+      Write-Output "Installing sqlcmd"
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+      $null = brew update
       brew install msodbcsql17 mssql-tools
    }
    
@@ -93,6 +93,7 @@ if ("sqlpackage" -in $Install) {
 
    if ($iswindows) {
       choco install sqlpackage
+      sqlpackage /version
    }
 }
 
