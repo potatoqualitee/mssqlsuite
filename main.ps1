@@ -7,7 +7,6 @@ param (
 if ("engine" -in $Install) {
    Write-Output "Installing docker"
    if ($ismacos) {
-      
       mkdir -p ~/.docker/machine/cache
       curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
       brew install docker docker-machine
@@ -25,10 +24,12 @@ if ("engine" -in $Install) {
       ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
       . $profile
       docker-machine ip default
-      Start-Sleep 5
+      docker-machine stop default
+      VBoxManage modifyvm "default" --natpf1 "mssql,tcp,,1433,,1433"
+      docker-machine start default
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="3g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
-      docker-machine ssh default -L 1433:localhost:1433
+      #docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
       docker ps -a
       docker-machine ip
