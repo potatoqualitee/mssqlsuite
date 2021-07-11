@@ -1,7 +1,8 @@
 param (
    [ValidateSet("sqlcmd","sqlpackage", "engine", "localdb")]
    [string[]]$Install,
-   [string]$SaPassword
+   [string]$SaPassword,
+   [switch]$ShowLog
 )
 
 if ("engine" -in $Install) {
@@ -10,7 +11,7 @@ if ("engine" -in $Install) {
       mkdir -p ~/.docker/machine/cache
       curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
       brew install docker docker-machine
-      docker-machine create --driver virtualbox --virtualbox-memory 4096 default
+      docker-machine create --driver virtualbox --virtualbox-memory 3072 default
       docker-machine env default
       
       $profiledir = Split-Path $profile
@@ -23,26 +24,32 @@ if ("engine" -in $Install) {
       docker-machine env default | Add-Content $profile
       ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
       . $profile
-      docker-machine ip default
       docker-machine stop default
       VBoxManage modifyvm "default" --natpf1 "mssql,tcp,,1433,,1433"
       docker-machine start default
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="3g" -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
-      #docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
-      docker ps -a
-      docker-machine ip
-      docker-machine ls
-      docker logs -t sql
+      if ($ShowLog) {
+         docker-machine ip default
+         docker ps -a
+         docker-machine ip
+         docker-machine ls
+         docker logs -t sql
+      }
    }
 
    if ($islinux) {
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 10
-      docker logs -t sql
-      sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+      
+      if ($ShowLog) {
+         docker ps -a
+         docker-machine ip
+         docker-machine ls
+         docker logs -t sql
+      }
    }
 
    if ($iswindows) {
@@ -55,7 +62,6 @@ if ("engine" -in $Install) {
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe -OutFile sqlsetup.exe
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.box -OutFile sqlsetup.box
       Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
-      Get-ChildItem $PWD
       .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
       Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
       Restart-Service MSSQLSERVER
@@ -70,7 +76,11 @@ if ("sqlcmd" -in $Install) {
       Write-Output "Installing sqlcmd"
       brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
       $null = brew update
-      brew install msodbcsql17 mssql-tools
+      $log = brew install msodbcsql17 mssql-tools
+      
+      if ($ShowLog) {
+         $log
+      }
    }
    
    Write-Output "sqlcmd is installed"
@@ -81,23 +91,32 @@ if ("sqlpackage" -in $Install) {
 
    if ($ismacos) {
       curl "https://go.microsoft.com/fwlink/?linkid=2143659" -4 -sL -o '/tmp/sqlpackage.zip'
-      unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
+      $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
       chmod +x $HOME/sqlpackage/sqlpackage
       sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
-      sqlpackage /version
+      if ($ShowLog) {
+         $log
+         sqlpackage /version
+      }
    }
 
    if ($islinux) {
       curl "https://go.microsoft.com/fwlink/?linkid=2143497" -4 -sL -o '/tmp/sqlpackage.zip'
-      unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
+      $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
       chmod +x $HOME/sqlpackage/sqlpackage
       sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
-      sqlpackage /version
+      if ($ShowLog) {
+         $log
+         sqlpackage /version
+      }
    }
 
    if ($iswindows) {
-      choco install sqlpackage
-      sqlpackage /version
+      $log = choco install sqlpackage
+      if ($ShowLog) {
+         $log
+         sqlpackage /version
+      }
    }
 }
 
