@@ -16,8 +16,8 @@ jobs:
         uses: potatoqualitee/mssqlsuite@testsdocs
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
-          sa_password: c0MplicatedP@ssword
-          show_log: true
+          sa-password: c0MplicatedP@ssword
+          show-log: true
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"

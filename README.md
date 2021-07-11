@@ -23,8 +23,8 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 ### Inputs
 
 * `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
-* `sa_password` - The sa password for the SQL instance. The default is `dbatools.I0`
-* `show_log` - Show the log file for the docker container
+* `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
+* `show-log` - Show logs, including docker logs, for troubleshooting
 
 ### Outputs
 
@@ -73,6 +73,34 @@ jobs:
 
       - name: Run sqlclient
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+```
+
+Installing SQL Engine with a different sa password
+
+```yaml
+on: [push]
+
+jobs:
+  test-everywhere:
+    name: Test Action on all platforms
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run the action
+        uses: potatoqualitee/mssqlsuite@testsdocs
+        with:
+          install: sqlengine, sqlclient, sqlpackage, localdb
+          sa-password: c0MplicatedP@ssword
+          show-log: true
+
+      - name: Run sqlcmd
+        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"
 ```
 
 ## Contributing
