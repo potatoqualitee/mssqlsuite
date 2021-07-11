@@ -39,7 +39,7 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      docker pull microsoft/mssql-server-windows-developer
+      docker pull microsoft/mssql-server-windows-developer --disable-content-trust
       #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
