@@ -1,5 +1,5 @@
 # sqlsuite
-A GitHub Action that automatically installs SQL Server suite of tools (sqlcmd, sqlpackage, sql engine) for Windows, macOS and Linux.
+A GitHub Action that automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
 
 ## Documentation
 
