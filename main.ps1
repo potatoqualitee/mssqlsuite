@@ -37,9 +37,11 @@ if ("engine" -in $Install) {
    }
 
    if ($islinux) {
-      docker run -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 10
+      docker logs -t sql
+      sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
    }
 
    if ($iswindows) {
