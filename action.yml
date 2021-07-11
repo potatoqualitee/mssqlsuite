@@ -16,6 +16,10 @@ runs:
   steps:
     - id: psoutput
       shell: pwsh
+      env:
+        ACCEPT_EULA: "Y"
+        SA_PASSWORD: ${{ inputs.sa-password }}
+        MSSQL_AGENT_ENABLED: "true"
       run: |
         Write-Output "Getting variables for suite"
 
