@@ -1,4 +1,4 @@
-name: "SQL Server Suite"
+name: "mssql suite"
 branding:
   icon: "database"
   color: "yellow"
