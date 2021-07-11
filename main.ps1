@@ -6,8 +6,9 @@ param (
 )
 
 if ("engine" -in $Install) {
-   Write-Output "Installing docker"
+   Write-Output "Installing SQL Engine"
    if ($ismacos) {
+      Write-Output "mac detected, installing docker then downloading a docker container"
       mkdir -p ~/.docker/machine/cache
       curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
       brew install docker docker-machine
@@ -37,9 +38,12 @@ if ("engine" -in $Install) {
          docker-machine ls
          docker logs -t sql
       }
+      
+      Write-Output "sql engine installed at localhost"
    }
 
    if ($islinux) {
+      Write-Output "linux detected, downloading the 2019 docker container"
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 10
@@ -50,9 +54,11 @@ if ("engine" -in $Install) {
          docker-machine ls
          docker logs -t sql
       }
+      Write-Output "docker container running - sql server accessible at localhost"
    }
 
    if ($iswindows) {
+      Write-Output "windows detected, downloading sql server 2019"
       # docker takes 16 minutes, this takes 5 minutes
       if (-not (Test-Path C:\temp)) {
          mkdir C:\temp
@@ -68,6 +74,8 @@ if ("engine" -in $Install) {
       sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
       sqlcmd -S localhost -q "ALTER LOGIN [sa] ENABLE"
       Pop-Location
+      
+      Write-Output "sql server 2019 installed at localhost and accessible with both windows and sql auth"
    }
 }
 
@@ -87,7 +95,7 @@ if ("sqlclient" -in $Install) {
 }
 
 if ("sqlpackage" -in $Install) {
-   Write-Output "sqlpackage install"
+   Write-Output "installing sqlpackage"
 
    if ($ismacos) {
       curl "https://go.microsoft.com/fwlink/?linkid=2143659" -4 -sL -o '/tmp/sqlpackage.zip'
@@ -118,11 +126,13 @@ if ("sqlpackage" -in $Install) {
          sqlpackage /version
       }
    }
+   
+   Write-Output "sqlpackage installed"
 }
 
 if ("localdb" -in $Install) {
    if ($iswindows) {
-      Write-Host "Downloading"
+      Write-Host "Downloading SqlLocalDB"
       $ProgressPreference = "SilentlyContinue"
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi -OutFile SqlLocalDB.msi
       Write-Host "Installing"
@@ -130,6 +140,8 @@ if ("localdb" -in $Install) {
       Write-Host "Checking"
       sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
       sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
+      
+      Write-Host "SqlLocalDB installed and accessible at (localdb)\MSSQLLocalDB"
    } else {
       Write-Output "localdb cannot be isntalled on mac or linux"
    }
