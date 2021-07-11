@@ -11,7 +11,7 @@ if ("engine" -in $Install) {
       mkdir -p ~/.docker/machine/cache
       curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
       brew install docker docker-machine
-      docker-machine create --driver virtualbox default
+      docker-machine create --driver virtualbox --virtualbox-memory 4096 default
       docker-machine env default
       
       $profiledir = Split-Path $profile
@@ -26,7 +26,7 @@ if ("engine" -in $Install) {
       . $profile
       docker-machine ip default
       Start-Sleep 5
-      docker run --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run --name sql -p 1433:1433 --memory="3g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       docker-machine ssh default -L 1433:localhost:1433
       Start-Sleep 5
