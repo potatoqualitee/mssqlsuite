@@ -1,6 +1,8 @@
 # sqlsuite
 A GitHub Action that automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
 
+The `SqlServer` PowerShell module is included on the Windows runner. You can find more information about what's installed on GitHub runners on their [docs page](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-software).
+
 ## Documentation
 
 Just copy the code below and modify the line **`install: engine, sqlclient, sqlpackage, localdb`** with the options you need.
@@ -77,7 +79,17 @@ jobs:
 Pull requests are welcome!
 
 ## TODO
-* Wait for GitHub Actions to support more stuff to make the install sleeker. 
+* Wait for GitHub Actions to support more stuff to make the install sleeker.
+* Maybe more tools from [here](https://docs.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-download?view=sql-server-ver15).
+  * mssql-cli (command-line query tool)
+  * osql
+  * Profiler Utility
+  * sqlagent90 Application
+  * SQLdiag
+  * sqlmaint
+  * sqllogship Application
+  * sqlservr Application
+  * tablediff
 
 ## License
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
