@@ -11,6 +11,10 @@ inputs:
     description: "The password for the SQL instance"
     required: false
     default: "dbatools.I0"
+  show-log:
+    description: "Show the log file for the docker container"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -27,6 +31,7 @@ runs:
         $params = @{
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.sa-password }}"
+            ShowLog         = "[bool]${{ inputs.show-log }}"
         }
 
         ./main.ps1 @params
