@@ -50,8 +50,6 @@ if ("sqlengine" -in $Install) {
       
       if ($ShowLog) {
          docker ps -a
-         docker-machine ip
-         docker-machine ls
          docker logs -t sql
       }
       Write-Output "docker container running - sql server accessible at localhost"

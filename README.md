@@ -1,7 +1,5 @@
 # mssqlsuite
-A GitHub Action that automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
-
-The `SqlServer` PowerShell module is included on the Windows runner. You can find more information about what's installed on GitHub runners on their [docs page](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-software).
+This GitHub Action automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
 
 ## Documentation
 
@@ -23,8 +21,8 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 ### Inputs
 
 * `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
-* `sa_password` - The sa password for the SQL instance. The default is `dbatools.I0`
-* `show_log` - Show the log file for the docker container
+* `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
+* `show-log` - Show logs, including docker logs, for troubleshooting
 
 ### Outputs
 
@@ -49,7 +47,29 @@ None
 
 ### Example workflows
 
-Installing everything on all OSes
+Create a SQL Server 2019 container and sqlpackage on Linux (the fastest runner, by far)
+
+```yaml
+on: [push]
+
+jobs:
+  test-everywhere:
+    name: Test Action on all platforms
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run the action
+        uses: potatoqualitee/mssqlsuite@v1
+        with:
+          install: sqlengine, sqlpackage
+
+      - name: Run sqlclient
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+```
+
+Installing everything on all OSes, plus using a different sa password
 
 ```yaml
 on: [push]
@@ -70,9 +90,11 @@ jobs:
         uses: potatoqualitee/mssqlsuite@v1
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
+          sa-password: c0MplicatedP@ssword
+          show-log: true
 
-      - name: Run sqlclient
-        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+      - name: Run sqlcmd
+        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"
 ```
 
 ## Contributing
@@ -83,14 +105,15 @@ Pull requests are welcome!
 * Maybe more tools from [here](https://docs.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-download?view=sql-server-ver15).
   * mssql-cli (command-line query tool)
   * osql
-  * Profiler Utility
-  * sqlagent90 Application
   * SQLdiag
   * sqlmaint
-  * sqllogship Application
-  * sqlservr Application
+  * sqllogship
   * tablediff
 
 ## License
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
+
+## Notes
+
+The `SqlServer` PowerShell module is included on the Windows runner. You can find more information about what's installed on GitHub runners on their [docs page](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-software).
 
