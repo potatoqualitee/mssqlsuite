@@ -2,7 +2,7 @@ name: "SQL Server Suite"
 branding:
   icon: "database"
   color: "yellow"
-description: "Automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, sql engine, localdb and more for Windows, macOS and Linux."
+description: "Installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, db engine and localdb for Windows, macOS and Linux."
 inputs:
   install:
     description: "The apps to install"
