@@ -45,7 +45,6 @@ None
 | sqlpackage | macOS | Installed from web | ~25 seconds |
 | sqlpackage | Windows | Installed using chocolatey | ~1.5 minutes |
 
-
 ### Example workflows
 
 Installing everything on all OSes
@@ -71,7 +70,7 @@ jobs:
           install: engine, sqlclient, sqlpackage, localdb
 
       - name: Run sqlclient
-        run: sqlclient -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
 ```
 
 ## Contributing
