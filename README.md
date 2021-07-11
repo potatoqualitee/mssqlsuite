@@ -20,8 +20,9 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 ### Inputs
 
-* `install` - The apps to install
-* `sa_password` - The password for the SQL instance
+* `install` - The apps to install. Options include: `engine`, `sqlcmd`, `sqlpackage`, and `localdb`
+* `sa_password` - The password for the SQL instance. The default is `dbatools.I0`
+* `show_log` - Show the log file for the docker container
 
 ### Outputs
 
