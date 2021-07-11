@@ -21,7 +21,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 ### Inputs
 
 * `install` - The apps to install. Options include: `engine`, `sqlclient`, `sqlpackage`, and `localdb`
-* `sa_password` - The password for the SQL instance. The default is `dbatools.I0`
+* `sa_password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `show_log` - Show the log file for the docker container
 
 ### Outputs
@@ -30,15 +30,21 @@ None
 
 ### Details
 
-| Setting | Description | Default Value | Type |
+| Application | Operating System | Details | Install time |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
-| Case Sensitive | Case sensitive search | false | Boolean |
-| Codicon | The codicon that shows up on the side of the filename. Alternatives include `file-binary`, `book`, and more. | file | String |
-| Depth | The depth of subfolders to include in the search. | 0 | Number 0-5 |
-| Folder | The folder to look for workspace files in. If Folder is empty, your home folder will be used. | None (all of your current workspaces will be used) | String |
-| Include File Types | Return only these specific file types. Example: php, ts, ps1 | | String |
-| Search minimum | The minimum number of workspaces required before the search box is displayed. 0 Will always display the search box. | 15 | Number 0-100 |
-| Show Paths | Show the paths to the workspaces in the sidebar. Available options are: 'Always', 'Never', 'As needed' (will only display paths if there are duplicate labels). | As Needed | Dropdown List |
+| SQL Server Engine | Linux | Docker container with SQL Server 2019, accessible at `localhost` | ~45 seconds |
+| SQL Server Engine | macOS | Docker container with SQL Server 2019 running on VirtualBox, accessible at `localhost`. Docker [not supported on macOS](https://github.community/t/why-is-docker-not-installed-on-macos/17017) in GitHub Actions. | ~5 minutes |
+| SQL Server Engine | Windows | Full install of SQL Server 2019, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL Server authentication both supported. | ~5 minutes |
+| Microsoft SQL Server Express LocalDB | Linux | Not supported | N/A |
+| Microsoft SQL Server Express LocalDB | macOS | Not supported | N/A |
+| Microsoft SQL Server Express LocalDB | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30 seconds |
+| SQL Client Tools | Linux | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
+| SQL Client Tools | macOS | Includes sqlcmd, bcp, and odbc drivers | ~2 minutes |
+| SQL Client Tools | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
+| sqlpackage | Linux | Installed from web | ~20 seconds |
+| sqlpackage | macOS | Installed from web | ~25 seconds |
+| sqlpackage | Windows | Installed using chocolatey | ~1.5 minutes |
+
 
 ### Example workflows
 
