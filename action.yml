@@ -1,0 +1,37 @@
+name: "SQL Server Suite"
+branding:
+  icon: "database"
+  color: "yellow"
+description: "Automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, sql engine, localdb and more for Windows, macOS and Linux."
+inputs:
+  install:
+    description: "The apps to install"
+    required: true
+  sa-password:
+    description: "The sa password for the SQL instance"
+    required: false
+    default: "dbatools.I0"
+  show-log:
+    description: "Show the log file for the docker container"
+    required: false
+    default: "false"
+runs:
+  using: "composite"
+  steps:
+    - id: psoutput
+      shell: pwsh
+      env:
+        ACCEPT_EULA: "Y"
+        SA_PASSWORD: ${{ inputs.sa-password }}
+        MSSQL_AGENT_ENABLED: "true"
+        HOMEBREW_NO_ENV_FILTERING: "1"
+      run: |
+        Write-Output "Getting variables for suite"
+
+        $params = @{
+            Install         = ("${{ inputs.install }}" -split ",").Trim()
+            SaPassword      = "${{ inputs.sa-password }}"
+            ShowLog         = $${{ inputs.show-log }}
+        }
+
+        ./main.ps1 @params

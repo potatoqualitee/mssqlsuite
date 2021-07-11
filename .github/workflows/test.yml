@@ -1,0 +1,21 @@
+on: [push]
+
+jobs:
+  test-everywhere:
+    name: Test Action on all platforms
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run the action
+        uses: potatoqualitee/mssqlsuite@initial
+        with:
+          install: sqlengine, sqlclient, sqlpackage, localdb
+
+      - name: Run sqlcmd
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
