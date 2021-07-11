@@ -55,11 +55,7 @@ on: [push]
 jobs:
   test-everywhere:
     name: Test Action on all platforms
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -91,7 +87,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@testsdocs
+        uses: potatoqualitee/mssqlsuite@v1
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
           sa-password: c0MplicatedP@ssword
@@ -109,12 +105,9 @@ Pull requests are welcome!
 * Maybe more tools from [here](https://docs.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-download?view=sql-server-ver15).
   * mssql-cli (command-line query tool)
   * osql
-  * Profiler Utility
-  * sqlagent90 Application
   * SQLdiag
   * sqlmaint
-  * sqllogship Application
-  * sqlservr Application
+  * sqllogship
   * tablediff
 
 ## License
