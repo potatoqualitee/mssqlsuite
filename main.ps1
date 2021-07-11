@@ -39,20 +39,8 @@ if ("docker" -in $Install) {
    }
 
    if ($iswindows) {
-      if (-not (Test-Path C:\temp)) {
-         mkdir C:\temp
-      }
-      Push-Location C:\temp
-      $ProgressPreference = "SilentlyContinue"
-      Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe -OutFile sqlsetup.exe
-      Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.box -OutFile sqlsetup.box
-      Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
-      Get-ChildItem $PWD
-      .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\NETWORK SERVICE' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
-      Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
-      Restart-Service MSSQLSERVER
-      sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
-      Pop-Location
+      docker pull microsoft/mssql-server-windows-developer
+      #docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -p 1433:1433 -d microsoft/mssql-server-windows-developer
    }
 
    Write-Output "Waiting for docker to start"
