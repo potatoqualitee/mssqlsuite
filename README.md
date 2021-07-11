@@ -32,20 +32,20 @@ None
 
 ### Details
 
-| Application | Operating System | Details | Install time |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
-| SQL Server Engine | Linux | Docker container with SQL Server 2019, accessible at `localhost` | ~45 seconds |
-| SQL Server Engine | macOS | Docker container with SQL Server 2019 running on VirtualBox, accessible at `localhost`. Docker [not supported on macOS](https://github.community/t/why-is-docker-not-installed-on-macos/17017) in GitHub Actions. | ~5 minutes |
-| SQL Server Engine | Windows | Full install of SQL Server 2019, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL Server authentication both supported. | ~5 minutes |
-| Microsoft SQL Server Express LocalDB | Linux | Not supported | N/A |
-| Microsoft SQL Server Express LocalDB | macOS | Not supported | N/A |
-| Microsoft SQL Server Express LocalDB | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30 seconds |
-| SQL Client Tools | Linux | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
-| SQL Client Tools | macOS | Includes sqlcmd, bcp, and odbc drivers | ~2 minutes |
-| SQL Client Tools | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
-| sqlpackage | Linux | Installed from web | ~20 seconds |
-| sqlpackage | macOS | Installed from web | ~25 seconds |
-| sqlpackage | Windows | Installed using chocolatey | ~1.5 minutes |
+| Application | Keyword | OS | Details | Time |
+| -------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
+| SQL Engine | sqlengine | Linux | Docker container with SQL Server 2019, accessible at `localhost` | ~45s |
+| SqlLocalDB | localdb | Linux | Not supported | N/A |
+| Client Tools | sqlclient | Linux | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
+| sqlpackage | sqlpackage | Linux | Installed from web | ~20s |
+| SQL Engine | sqlengine | Windows | Full install of SQL Server 2019, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL authentication both supported. | ~5m |
+| SqlLocalDB | localdb | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30s |
+| Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
+| sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~1.5m |
+| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2019 running on VirtualBox, accessible at `localhost`. Docker [not supported on macOS](https://github.community/t/why-is-docker-not-installed-on-macos/17017) in GitHub Actions. | ~5m |
+| SqlLocalDB | localdb | macOS | Not supported | N/A |
+| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~2m |
+| sqlpackage | sqlpackage | macOS | Installed from web | ~25s |
 
 ### Example workflows
 
