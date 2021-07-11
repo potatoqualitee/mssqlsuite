@@ -1,4 +1,4 @@
-# sqlsuite
+# mssqlsuite
 A GitHub Action that automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
 
 The `SqlServer` PowerShell module is included on the Windows runner. You can find more information about what's installed on GitHub runners on their [docs page](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-software).
@@ -9,7 +9,7 @@ Just copy the code below and modify the line **`install: sqlengine, sqlclient, s
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/sqlsuite@v1
+      uses: potatoqualitee/mssqlsuite@v1
       with:
         install: sqlengine, sqlclient, sqlpackage, localdb
 ```
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/sqlsuite@initial
+        uses: potatoqualitee/mssqlsuite@initial
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
 
