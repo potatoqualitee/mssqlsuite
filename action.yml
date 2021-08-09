@@ -34,4 +34,4 @@ runs:
             ShowLog         = $${{ inputs.show-log }}
         }
 
-        ./main.ps1 @params
+        ${{ github.action_path }}/main.ps1 @params
