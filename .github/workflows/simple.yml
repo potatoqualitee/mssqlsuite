@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1
+        uses: ./
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
 

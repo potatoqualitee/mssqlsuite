@@ -9,33 +9,42 @@ if ("sqlengine" -in $Install) {
    Write-Output "Installing SQL Engine"
    if ($ismacos) {
       Write-Output "mac detected, installing docker then downloading a docker container"
-      mkdir -p ~/.docker/machine/cache
-      curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
-      brew install docker docker-machine
-      docker-machine create --driver virtualbox --virtualbox-memory 3072 default
-      docker-machine env default
+      $Env:HOMEBREW_NO_AUTO_UPDATE = 1
+      brew install --cask docker
+      sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+      open -a /Applications/Docker.app --args --unattended --accept-license
+      Start-Sleep 30
+      $tries = 0
+      Write-Output "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+      do { 
+         try {
+            $tries++
+            $sock = Get-ChildItem $home/Library/Containers/com.docker.docker/Data/docker.raw.sock -ErrorAction Stop
+         } catch {
+            Write-Output "Waiting..."
+            Start-Sleep 5
+         }
+      }
+      until ($sock.BaseName -or $tries -gt 55)
       
-      $profiledir = Split-Path $profile
-      if (-not (Test-Path $profiledir)) {
-         mkdir $profiledir
-         "" | Add-Content $profile
+      if ($tries -gt 55) {
+         Write-Output "
+         
+         
+         
+         Moving on without waiting for docker to start
+         
+         
+         
+         
+         "
       }
 
-      docker-machine env default | Add-Content "$home/.bashrc"
-      docker-machine env default | Add-Content $profile
-      ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
-      . $profile
-      docker-machine stop default
-      VBoxManage modifyvm "default" --natpf1 "mssql,tcp,,1433,,1433"
-      docker-machine start default
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       Start-Sleep 5
       if ($ShowLog) {
-         docker-machine ip default
          docker ps -a
-         docker-machine ip
-         docker-machine ls
          docker logs -t sql
       }
       
