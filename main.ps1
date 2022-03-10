@@ -32,21 +32,11 @@ if ("sqlengine" -in $Install) {
          "" | Add-Content $profile
       }
 
-      docker-machine env default | Add-Content "$home/.bashrc"
-      docker-machine env default | Add-Content $profile
-      ((Get-Content $profile) -replace 'export ','$env:') | Set-Content $profile
-      . $profile
-      docker-machine stop default
-      VBoxManage modifyvm "default" --natpf1 "mssql,tcp,,1433,,1433"
-      docker-machine start default
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       Start-Sleep 5
       if ($ShowLog) {
-         docker-machine ip default
          docker ps -a
-         docker-machine ip
-         docker-machine ls
          docker logs -t sql
       }
       
