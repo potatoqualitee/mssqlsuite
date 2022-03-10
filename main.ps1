@@ -13,15 +13,15 @@ if ("sqlengine" -in $Install) {
       brew install --cask docker
       sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
       open -a /Applications/Docker.app --args --unattended --accept-license
-      Start-Sleep 20
+      Start-Sleep 30
       $tries = 0
       Write-Output "We are waiting for Docker to be up and running. It can take over 2 minutes..."
       do { 
          try {
             $tries++
-            #$info = /Applications/Docker.app/Contents/Resources/bin/docker info
             $sock = Get-ChildItem $home/Library/Containers/com.docker.docker/Data/docker.raw.sock -ErrorAction Stop
          } catch {
+            Write-Output "Waiting..."
             Start-Sleep 5
          }
       }
