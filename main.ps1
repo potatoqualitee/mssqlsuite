@@ -8,7 +8,7 @@ param (
 if ("sqlengine" -in $Install) {
    Write-Output "Installing SQL Engine"
    if ($ismacos) {
-      Write-Output "mac detected, installing virtualbox, docker then downloading a docker container"
+      Write-Output "mac detected, installing docker then downloading a docker container"
       $Env:HOMEBREW_NO_AUTO_UPDATE = 1
       brew install --cask docker
       sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
