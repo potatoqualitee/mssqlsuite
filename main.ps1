@@ -9,12 +9,21 @@ if ("sqlengine" -in $Install) {
    Write-Output "Installing SQL Engine"
    if ($ismacos) {
       Write-Output "mac detected, installing virtualbox, docker then downloading a docker container"
-      brew install virtualbox
-      mkdir -p ~/.docker/machine/cache
-      curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
-      brew install docker docker-machine
-      docker-machine create --driver virtualbox --virtualbox-memory 3072 default
-      docker-machine env default
+      HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
+      sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+      open -a /Applications/Docker.app --args --unattended --accept-license
+      Start-Sleep 20
+      $tries = 0
+      Write-Output "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+      do { 
+         try {
+            $tries++
+            $info = /Applications/Docker.app/Contents/Resources/bin/docker info
+         } catch {
+            Start-Sleep 5
+         }
+      }
+      until ($info -notmatch "Cannot connect" -or $tries -gt 25)
       
       $profiledir = Split-Path $profile
       if (-not (Test-Path $profiledir)) {
