@@ -19,17 +19,25 @@ if ("sqlengine" -in $Install) {
       do { 
          try {
             $tries++
-            $info = /Applications/Docker.app/Contents/Resources/bin/docker info
+            #$info = /Applications/Docker.app/Contents/Resources/bin/docker info
+            $sock = Get-ChildItem $home/Library/Containers/com.docker.docker/Data/docker.raw.sock -ErrorAction Stop
          } catch {
             Start-Sleep 5
          }
       }
-      until ($info -notmatch "Cannot connect" -or $tries -gt 25)
+      until ($sock.BaseName -or $tries -gt 25)
       
-      $profiledir = Split-Path $profile
-      if (-not (Test-Path $profiledir)) {
-         mkdir $profiledir
-         "" | Add-Content $profile
+      if ($tries -gt 25) {
+         Write-Output "
+         
+         
+         
+         Moving on without waiting for docker to start
+         
+         
+         
+         
+         "
       }
 
       docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
