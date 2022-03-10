@@ -25,9 +25,9 @@ if ("sqlengine" -in $Install) {
             Start-Sleep 5
          }
       }
-      until ($sock.BaseName -or $tries -gt 25)
+      until ($sock.BaseName -or $tries -gt 55)
       
-      if ($tries -gt 25) {
+      if ($tries -gt 55) {
          Write-Output "
          
          
