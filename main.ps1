@@ -105,7 +105,7 @@ if ("sqlpackage" -in $Install) {
    Write-Output "installing sqlpackage"
 
    if ($ismacos) {
-      curl "https://go.microsoft.com/fwlink/?linkid=2143659" -4 -sL -o '/tmp/sqlpackage.zip'
+      curl "https://https://aka.ms/sqlpackage-macos" -4 -sL -o '/tmp/sqlpackage.zip'
       $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
       chmod +x $HOME/sqlpackage/sqlpackage
       sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
@@ -116,7 +116,7 @@ if ("sqlpackage" -in $Install) {
    }
 
    if ($islinux) {
-      curl "https://go.microsoft.com/fwlink/?linkid=2143497" -4 -sL -o '/tmp/sqlpackage.zip'
+      curl "https://aka.ms/sqlpackage-linux" -4 -sL -o '/tmp/sqlpackage.zip'
       $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
       chmod +x $HOME/sqlpackage/sqlpackage
       sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
