@@ -15,6 +15,10 @@ inputs:
     description: "Show the log file for the docker container"
     required: false
     default: "false"
+  collation:
+    description: "Change the collation associated with the SQL Server instance"
+    required: false
+    default: "SQL_Latin1_General_CP1_CI_AS"
 runs:
   using: "composite"
   steps:
@@ -32,6 +36,7 @@ runs:
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.sa-password }}"
             ShowLog         = $${{ inputs.show-log }}
+            Collation       = "${{ inputs.Collation }}"
         }
 
         ${{ github.action_path }}/main.ps1 @params

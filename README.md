@@ -69,7 +69,7 @@ jobs:
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
 ```
 
-Installing everything on all OSes, plus using a different sa password
+Installing everything on all OSes, plus using a different sa password and collation
 
 ```yaml
 on: [push]
@@ -92,6 +92,7 @@ jobs:
           install: sqlengine, sqlclient, sqlpackage, localdb
           sa-password: c0MplicatedP@ssword
           show-log: true
+          collation: Latin1_General_BIN
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"

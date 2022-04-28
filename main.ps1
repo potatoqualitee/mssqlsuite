@@ -2,7 +2,8 @@ param (
    [ValidateSet("sqlclient","sqlpackage", "sqlengine", "localdb")]
    [string[]]$Install,
    [string]$SaPassword,
-   [switch]$ShowLog
+   [switch]$ShowLog,
+   [string]$Collation="SQL_Latin1_General_CP1_CI_AS"
 )
 
 if ("sqlengine" -in $Install) {
@@ -40,7 +41,7 @@ if ("sqlengine" -in $Install) {
          "
       }
 
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 --memory="2g" -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Docker finished running"
       Start-Sleep 5
       if ($ShowLog) {
@@ -53,7 +54,7 @@ if ("sqlengine" -in $Install) {
 
    if ($islinux) {
       Write-Output "linux detected, downloading the 2019 docker container"
-      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
+      docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
       Write-Output "Waiting for docker to start"
       Start-Sleep -Seconds 10
       
@@ -75,7 +76,7 @@ if ("sqlengine" -in $Install) {
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe -OutFile sqlsetup.exe
       Invoke-WebRequest -Uri https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.box -OutFile sqlsetup.box
       Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
-      .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT SERVICE\MSSQLSERVER' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS
+      .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT SERVICE\MSSQLSERVER' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS /SQLCOLLATION=$Collation
       Set-ItemProperty -path 'HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQLSERVER\' -Name LoginMode -Value 2 
       Restart-Service MSSQLSERVER
       sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"

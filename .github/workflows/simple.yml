@@ -19,3 +19,8 @@ jobs:
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+
+      - name: Check collation
+        shell: pwsh
+        run: |
+          ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName sa -Password dbatools.I0
