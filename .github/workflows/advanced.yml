@@ -20,6 +20,13 @@ jobs:
           install: sqlengine, sqlclient, sqlpackage, localdb
           sa-password: c0MplicatedP@ssword
           show-log: true
+          collation: Latin1_General_BIN
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"
+
+      - name: Check collation
+        shell: pwsh
+        run: |
+          ./Test-Collation -ExpectedCollation Latin1_General_BIN -UserName sa -Password c0MplicatedP@ssword
+
