@@ -2,7 +2,7 @@ on: [push]
 
 jobs:
   test-everywhere:
-    name: Test Action on all platforms
+    name: Test Action on latest Ubuntu
     runs-on: ubuntu-latest
 
     steps:
@@ -20,4 +20,3 @@ jobs:
         shell: pwsh
         run: |
           ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName sa -Password dbatools.I0
-

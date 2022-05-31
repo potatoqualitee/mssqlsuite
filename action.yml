@@ -19,6 +19,10 @@ inputs:
     description: "Change the collation associated with the SQL Server instance"
     required: false
     default: "SQL_Latin1_General_CP1_CI_AS"
+  version:
+    description: "The version of SQL Server to install in year format"
+    required: false
+    default: "2019"
 runs:
   using: "composite"
   steps:
@@ -37,6 +41,7 @@ runs:
             SaPassword      = "${{ inputs.sa-password }}"
             ShowLog         = $${{ inputs.show-log }}
             Collation       = "${{ inputs.Collation }}"
+            Version         = "${{ inputs.Version }}"
         }
 
         ${{ github.action_path }}/main.ps1 @params

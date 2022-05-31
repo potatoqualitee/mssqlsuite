@@ -2,12 +2,13 @@ on: [push]
 
 jobs:
   test-everywhere:
-    name: Test Action on all platforms
+    name: Test Action on all platforms and versions
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        version: ["2017", "2019"]
 
     steps:
       - uses: actions/checkout@v2
@@ -16,6 +17,7 @@ jobs:
         uses: ./
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
+          version: ${{ matrix.version }}
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
