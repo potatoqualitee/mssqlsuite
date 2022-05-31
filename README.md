@@ -7,7 +7,7 @@ Just copy the code below and modify the line **`install: sqlengine, sqlclient, s
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/mssqlsuite@v1.4
+      uses: potatoqualitee/mssqlsuite@v1.5
       with:
         install: sqlengine, sqlclient, sqlpackage, localdb
 ```
@@ -22,6 +22,8 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 * `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
+* `collation` - Change the collation associated with the SQL Server instance
+* `version` - The version of SQL Server to install in year format. Options are 2017 and 2019, defaults to 2019
 * `show-log` - Show logs, including docker logs, for troubleshooting
 
 ### Outputs
@@ -61,7 +63,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.4
+        uses: potatoqualitee/mssqlsuite@v1.5
         with:
           install: sqlengine, sqlpackage
 
@@ -87,7 +89,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.4
+        uses: potatoqualitee/mssqlsuite@v1.5
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
           sa-password: c0MplicatedP@ssword
