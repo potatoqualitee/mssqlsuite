@@ -170,7 +170,7 @@ if ("localdb" -in $Install) {
         Write-Host "Checking"
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;"
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'"
-        sqlcmd -S localhost -q "ALTER LOGIN [sa] ENABLE"
+        sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE"
 
         Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
     } else {
