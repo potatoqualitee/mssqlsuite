@@ -7,7 +7,7 @@ Just copy the code below and modify the line **`install: sqlengine, sqlclient, s
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/mssqlsuite@v1.5
+      uses: potatoqualitee/mssqlsuite@v1.5.1
       with:
         install: sqlengine, sqlclient, sqlpackage, localdb
 ```
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.5
+        uses: potatoqualitee/mssqlsuite@v1.5.1
         with:
           install: sqlengine, sqlpackage
 
@@ -89,9 +89,10 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.5
+        uses: potatoqualitee/mssqlsuite@v1.5.1
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
+          version: 2017
           sa-password: c0MplicatedP@ssword
           show-log: true
           collation: Latin1_General_BIN
