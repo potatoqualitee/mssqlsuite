@@ -88,6 +88,12 @@ if ("sqlengine" -in $Install) {
                 $installOptions = "/USESQLRECOMMENDEDMEMORYLIMITS"
                 $versionMajor = 15
             }
+            "2022" {
+                $exeUri = "https://download.microsoft.com/download/4/0/2/4027643f-d845-4250-ae93-e66854ee1de6/SQLServer2022-x64-ENU.exe"
+                $boxUri = "https://download.microsoft.com/download/4/0/2/4027643f-d845-4250-ae93-e66854ee1de6/SQLServer2022-x64-ENU.box"
+                $installOptions = "/USESQLRECOMMENDEDMEMORYLIMITS"
+                $versionMajor = 16
+            }
         }
         Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
         Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
@@ -158,6 +164,9 @@ if ("sqlpackage" -in $Install) {
 
 if ("localdb" -in $Install) {
     if ($iswindows) {
+        if ($Version -eq "2022") {
+            Write-Output "LocalDB for SQL Server 2022 not available yet."
+        }
         Write-Host "Downloading SqlLocalDB"
         $ProgressPreference = "SilentlyContinue"
         switch ($Version) {
