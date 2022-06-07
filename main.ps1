@@ -4,7 +4,7 @@ param (
     [string]$SaPassword,
     [switch]$ShowLog,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
-    [ValidateSet("2019", "2017")]
+    [ValidateSet("2022","2019", "2017")]
     [string]$Version = "2019"
 )
 
