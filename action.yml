@@ -31,6 +31,7 @@ runs:
       env:
         ACCEPT_EULA: "Y"
         HOMEBREW_ACCEPT_EULA: "Y"
+        HOMEBREW_NO_INSTALL_CLEANUP: "Y"
         SA_PASSWORD: ${{ inputs.sa-password }}
         MSSQL_AGENT_ENABLED: "true"
       run: |

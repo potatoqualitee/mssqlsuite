@@ -4,7 +4,7 @@ on:
 
 jobs:
   test-everywhere:
-    name: Test Action on all platforms
+    name: Test All Platforms
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -14,13 +14,31 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Run the action
+      - name: Install sqlengine
         uses: ./
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
+          install: sqlengine
           sa-password: c0MplicatedP@ssword
           show-log: true
           collation: Latin1_General_BIN
+
+      - name: Install sqlclient
+        uses: ./
+        with:
+          install: sqlclient
+          show-log: true
+
+      - name: Install sqlpackage
+        uses: ./
+        with:
+          install: sqlpackage
+          show-log: true
+
+      - name: Install localdb
+        uses: ./
+        with:
+          install: localdb
+          show-log: true
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"

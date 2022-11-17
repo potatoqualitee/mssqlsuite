@@ -2,7 +2,7 @@ on: [push]
 
 jobs:
   test-everywhere:
-    name: Test Action on all platforms and versions
+    name: Test all platforms/versions
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
