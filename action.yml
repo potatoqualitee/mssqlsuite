@@ -30,6 +30,7 @@ runs:
       shell: pwsh
       env:
         ACCEPT_EULA: "Y"
+        HOMEBREW_ACCEPT_EULA: "Y"
         SA_PASSWORD: ${{ inputs.sa-password }}
         MSSQL_AGENT_ENABLED: "true"
       run: |
