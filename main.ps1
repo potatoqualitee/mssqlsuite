@@ -88,8 +88,8 @@ if ("sqlclient" -in $Install) {
     if ($ismacos) {
         Write-Output "Installing sqlclient tools"
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
-        $null = brew update
-        $log = brew install msodbcsql17 mssql-tools
+        #$null = brew update
+        $log = brew microsoft/mssql-release/install microsoft/mssql-release/msodbcsql17 microsoft/mssql-release/mssql-tools
 
         if ($ShowLog) {
             $log
