@@ -32,7 +32,6 @@ runs:
         ACCEPT_EULA: "Y"
         SA_PASSWORD: ${{ inputs.sa-password }}
         MSSQL_AGENT_ENABLED: "true"
-        HOMEBREW_NO_ENV_FILTERING: "1"
       run: |
         Write-Output "Getting variables for suite"
 
