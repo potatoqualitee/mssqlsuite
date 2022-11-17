@@ -13,36 +13,8 @@ if ("sqlengine" -in $Install) {
     if ($ismacos) {
         Write-Output "mac detected, installing docker then downloading a docker container"
         $Env:HOMEBREW_NO_AUTO_UPDATE = 1
-        brew install --cask docker
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        Start-Sleep 30
-        $tries = 0
-        Write-Output "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-        do {
-            try {
-                $tries++
-                $sock = Get-ChildItem $home/Library/Containers/com.docker.docker/Data/docker.raw.sock -ErrorAction Stop
-            } catch {
-                Write-Output "Waiting..."
-                Start-Sleep 5
-            }
-        }
-        until ($sock.BaseName -or $tries -gt 55)
-
-        if ($tries -gt 55) {
-            Write-Output "
-
-
-
-         Moving on without waiting for docker to start
-
-
-
-
-         "
-        }
-
+        brew install docker
+        colima start
         docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 --memory="2g" -d "mcr.microsoft.com/mssql/server:$Version-latest"
         Write-Output "Docker finished running"
         Start-Sleep 5
