@@ -61,8 +61,8 @@ if ("sqlengine" -in $Install) {
                 $versionMajor = 15
             }
             "2022" {
-                $exeUri = "https://download.microsoft.com/download/4/0/2/4027643f-d845-4250-ae93-e66854ee1de6/SQLServer2022-x64-ENU.exe"
-                $boxUri = "https://download.microsoft.com/download/4/0/2/4027643f-d845-4250-ae93-e66854ee1de6/SQLServer2022-x64-ENU.box"
+                $exeUri = "https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SQLServer2022-DEV-x64-ENU.exe"
+                $boxUri = "https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SQLServer2022-DEV-x64-ENU.box"
                 $installOptions = "/USESQLRECOMMENDEDMEMORYLIMITS"
                 $versionMajor = 16
             }
