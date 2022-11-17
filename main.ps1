@@ -89,7 +89,7 @@ if ("sqlclient" -in $Install) {
         Write-Output "Installing sqlclient tools"
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
         #$null = brew update
-        $log = HOMEBREW_ACCEPT_EULA=y brew install microsoft/mssql-release/msodbcsql17 microsoft/mssql-release/mssql-tools
+        $log = brew install microsoft/mssql-release/msodbcsql17 microsoft/mssql-release/mssql-tools
 
         if ($ShowLog) {
             $log
