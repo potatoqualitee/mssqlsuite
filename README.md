@@ -42,10 +42,10 @@ None
 | SqlLocalDB | localdb | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30s |
 | Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
 | sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~1.5m |
-| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2019 running on VirtualBox, accessible at `localhost`. Docker [not supported on macOS](https://github.community/t/why-is-docker-not-installed-on-macos/17017) in GitHub Actions. | ~5m |
+| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2019 accessible at `localhost`. | ~3m |
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
-| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~2m |
-| sqlpackage | sqlpackage | macOS | Installed from web | ~25s |
+| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~30s |
+| sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
 
 ### Example workflows
 
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1.5.1
@@ -86,7 +86,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1.5.1

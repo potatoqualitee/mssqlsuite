@@ -13,36 +13,8 @@ if ("sqlengine" -in $Install) {
     if ($ismacos) {
         Write-Output "mac detected, installing docker then downloading a docker container"
         $Env:HOMEBREW_NO_AUTO_UPDATE = 1
-        brew install --cask docker
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        Start-Sleep 30
-        $tries = 0
-        Write-Output "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-        do {
-            try {
-                $tries++
-                $sock = Get-ChildItem $home/Library/Containers/com.docker.docker/Data/docker.raw.sock -ErrorAction Stop
-            } catch {
-                Write-Output "Waiting..."
-                Start-Sleep 5
-            }
-        }
-        until ($sock.BaseName -or $tries -gt 55)
-
-        if ($tries -gt 55) {
-            Write-Output "
-
-
-
-         Moving on without waiting for docker to start
-
-
-
-
-         "
-        }
-
+        brew install docker
+        colima start --runtime docker
         docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 --memory="2g" -d "mcr.microsoft.com/mssql/server:$Version-latest"
         Write-Output "Docker finished running"
         Start-Sleep 5
@@ -115,8 +87,8 @@ if ("sqlclient" -in $Install) {
     if ($ismacos) {
         Write-Output "Installing sqlclient tools"
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
-        $null = brew update
-        $log = brew install msodbcsql17 mssql-tools
+        #$null = brew update
+        $log = brew install microsoft/mssql-release/msodbcsql17 microsoft/mssql-release/mssql-tools
 
         if ($ShowLog) {
             $log
@@ -130,7 +102,7 @@ if ("sqlpackage" -in $Install) {
     Write-Output "installing sqlpackage"
 
     if ($ismacos) {
-        curl "https://https://aka.ms/sqlpackage-macos" -4 -sL -o '/tmp/sqlpackage.zip'
+        curl "https://aka.ms/sqlpackage-macos" -4 -sL -o '/tmp/sqlpackage.zip'
         $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
         chmod +x $HOME/sqlpackage/sqlpackage
         sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
