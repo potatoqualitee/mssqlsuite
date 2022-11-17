@@ -103,7 +103,7 @@ if ("sqlpackage" -in $Install) {
     Write-Output "installing sqlpackage"
 
     if ($ismacos) {
-        curl "https://https://aka.ms/sqlpackage-macos" -4 -sL -o '/tmp/sqlpackage.zip'
+        curl "https://aka.ms/sqlpackage-macos" -4 -sL -o '/tmp/sqlpackage.zip'
         $log = unzip /tmp/sqlpackage.zip -d $HOME/sqlpackage
         chmod +x $HOME/sqlpackage/sqlpackage
         sudo ln -sf $HOME/sqlpackage/sqlpackage /usr/local/bin
