@@ -13,6 +13,7 @@ if ("sqlengine" -in $Install) {
     if ($ismacos) {
         Write-Output "mac detected, installing docker then downloading a docker container"
         #$Env:HOMEBREW_NO_AUTO_UPDATE = 1
+        Write-Output "brew install kubectl docker coreutils lima"
         brew install kubectl docker coreutils lima
         colima start --runtime docker
         Start-Sleep 5
