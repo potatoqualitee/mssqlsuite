@@ -15,7 +15,6 @@ if ("sqlengine" -in $Install) {
         $Env:HOMEBREW_NO_AUTO_UPDATE = 1
         brew install docker
         colima start --runtime docker
-        Start-Sleep 5
         docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 --memory="2g" -d "mcr.microsoft.com/mssql/server:$Version-latest"
         Write-Output "Docker finished running"
         Start-Sleep 5
