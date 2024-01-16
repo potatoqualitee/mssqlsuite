@@ -23,7 +23,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 * `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `collation` - Change the collation associated with the SQL Server instance
-* `version` - The version of SQL Server to install in year format. Options are 2017 and 2019, defaults to 2019
+* `version` - The version of SQL Server to install in year format. Options are `2017`, `2019`, and `2022`; defaults to `2019`.
 * `show-log` - Show logs, including docker logs, for troubleshooting
 
 ### Outputs
