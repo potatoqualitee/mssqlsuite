@@ -22,7 +22,7 @@ inputs:
   version:
     description: "The version of SQL Server to install in year format"
     required: false
-    default: "2019"
+    default: "2022"
 runs:
   using: "composite"
   steps:
@@ -40,7 +40,7 @@ runs:
         $params = @{
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.sa-password }}"
-            ShowLog         = ${{ inputs.show-log }}
+            ShowLog         = ("${{ inputs.show-log }}" -ieq "true")
             Collation       = "${{ inputs.Collation }}"
             Version         = "${{ inputs.Version }}"
         }
