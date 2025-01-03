@@ -26,3 +26,8 @@ jobs:
         shell: pwsh
         run: |
           ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName sa -Password dbatools.I0
+
+      - name: Check full-text search disabled
+        shell: pwsh
+        run: |
+          ./Test-FullTextSearch -UserName sa -Password c0MplicatedP@ssword -ExpectedStatus NotRunning

@@ -1,5 +1,5 @@
 param (
-    [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb")]
+    [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb", "fulltext")]
     [string[]]$Install,
     [string]$SaPassword = "dbatools.I0",
     [switch]$ShowLog,
@@ -20,7 +20,14 @@ if ("sqlengine" -in $Install) {
     if ($ismacos -or $islinux) {
         Write-Output "linux/mac detected, downloading the docker container"
 
-        docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d "mcr.microsoft.com/mssql/server:$Version-latest"
+        if ("fulltext" -in $Install) {
+            docker build -f Dockerfile-$Version -t mssql-fulltext .
+            $img = "mssql-fulltext"
+        } else {
+            $img = "mcr.microsoft.com/mssql/server:$Version-latest"
+        }
+
+        docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d $img
         Write-Output "Waiting for docker to start"
 
         # MacOS takes longer to start using qemu
@@ -62,7 +69,9 @@ if ("sqlengine" -in $Install) {
         Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
         Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
 
-        .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT SERVICE\MSSQLSERVER' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS /SQLCOLLATION=$Collation /USESQLRECOMMENDEDMEMORYLIMITS
+        $features = if ("fulltext" -in $Install) { "SQLEngine,FullText" } else { "SQLEngine" }
+
+        .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=$features /UPDATEENABLED=0 /SQLSVCACCOUNT='NT SERVICE\MSSQLSERVER' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS /SQLCOLLATION=$Collation /USESQLRECOMMENDEDMEMORYLIMITS
 
         Set-ItemProperty -path "HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQLSERVER\" -Name LoginMode -Value 2
         Restart-Service MSSQLSERVER
