@@ -3,13 +3,13 @@ This GitHub Action automatically installs a SQL Server suite of tools including 
 
 ## Documentation
 
-Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb`** with the options you need.
+Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb, fulltext`** with the options you need.
 
 ```yaml
     - name: Install a SQL Server suite of tools
       uses: potatoqualitee/mssqlsuite@v1.7
       with:
-        install: sqlengine, sqlclient, sqlpackage, localdb
+        install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
 ```
 
 ## Usage
@@ -20,10 +20,10 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 ### Inputs
 
-* `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
+* `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, `localdb`, and `fulltext`
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `collation` - Change the collation associated with the SQL Server instance
-* `version` - The version of SQL Server to install in year format. Options are 2017 and 2019, defaults to 2019
+* `version` - The version of SQL Server to install in year format. Options are 2019 and 2022 (defaults to 2022)
 * `show-log` - Show logs, including docker logs, for troubleshooting
 
 ### Outputs
@@ -34,22 +34,25 @@ None
 
 | Application | Keyword | OS | Details | Time |
 | -------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
-| SQL Engine | sqlengine | Linux | Docker container with SQL Server 2019, accessible at `localhost` | ~45s |
+| SQL Engine | sqlengine | Linux | Docker container with SQL Server 2022, accessible at `localhost` | ~30s |
 | SqlLocalDB | localdb | Linux | Not supported | N/A |
-| Client Tools | sqlclient | Linux | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
-| sqlpackage | sqlpackage | Linux | Installed from web | ~20s |
-| SQL Engine | sqlengine | Windows | Full install of SQL Server 2019, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL authentication both supported. | ~5m |
+| Client Tools | sqlclient | Linux | Includes sqlcmd, bcp, and odbc drivers | ~15s |
+| sqlpackage | sqlpackage | Linux | Installed from web | ~5s |
+| Full-Text Search | fulltext | Linux | Installed using apt-get | ~45s |
+| SQL Engine | sqlengine | Windows | Full install of SQL Server 2022, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL authentication both supported. | ~3m |
 | SqlLocalDB | localdb | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30s |
 | Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
-| sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~1.5m |
-| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2019 accessible at `localhost`. | ~3m |
+| sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~20s |
+| Full-Text Search | fulltext | Windows | Enabled during SQL Engine install | ~1m |
+| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2022 accessible at `localhost`. | ~7m |
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
-| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~30s |
+| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~20s |
 | sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
+| Full-Text Search | fulltext | macOS | Installed using apt-get | ~5m |
 
 ### Example workflows
 
-Create a SQL Server 2019 container and sqlpackage on Linux (the fastest runner, by far)
+Create a SQL Server 2022 container and sqlpackage on Linux (the fastest runner, by far)
 
 ```yaml
 on: [push]
@@ -68,7 +71,7 @@ jobs:
           install: sqlengine, sqlpackage
 
       - name: Run sqlclient
-        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;"
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
 ```
 
 Installing everything on all OSes, plus using a different sa password and collation
@@ -91,20 +94,22 @@ jobs:
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1.7
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
-          version: 2017
+          install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
+          version: 2019
           sa-password: c0MplicatedP@ssword
           show-log: true
           collation: Latin1_General_BIN
 
       - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"
+        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;" -C
 ```
 
 ## Contributing
 Pull requests are welcome!
 
 ## TODO
+* Add LocalDB support for SQL Server 2022.
+* MacOS: Migrate docker from qemu to vz to speed up the process.
 * Wait for GitHub Actions to support more stuff to make the install sleeker.
 * Maybe more tools from [here](https://docs.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-download?view=sql-server-ver15).
   * mssql-cli (command-line query tool)
