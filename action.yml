@@ -45,4 +45,8 @@ runs:
             Version         = "${{ inputs.Version }}"
         }
 
+        if (-not $params['ShowLog']) {
+          $params['ShowLog'] = $False
+        }
+
         ${{ github.action_path }}/main.ps1 @params

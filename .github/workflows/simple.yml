@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-22.04, windows-latest, macOS-latest]
         version: ["2017", "2019", "2022"]
 
     steps:
@@ -26,3 +26,13 @@ jobs:
         shell: pwsh
         run: |
           ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName sa -Password dbatools.I0
+
+      - name: Ensure full-text search was not enabled
+        run: |
+          sqlcmd -S localhost -U sa -P "YourPassword" -Q "SELECT servicename, status_desc FROM sys.dm_server_services WHERE servicename LIKE 'SQL Full-text Filter Daemon Launcher%';" | grep -q "Running"; then
+            echo "Full-Text Search is installed and running."
+            exit -1
+          else
+            echo "Full-Text Search is not running or not installed."
+            exit 0
+          fi
