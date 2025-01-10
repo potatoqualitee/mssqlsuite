@@ -10,17 +10,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        version: ["2019", "2022"]
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install sqlengine
+      - name: Install sqlengine with full-text search
         uses: ./
         with:
-          install: sqlengine
+          install: sqlengine,fulltext
           sa-password: c0MplicatedP@ssword
           show-log: true
           collation: Latin1_General_BIN
+          version: ${{ matrix.version }}
 
       - name: Install sqlclient
         uses: ./
@@ -41,10 +43,14 @@ jobs:
           show-log: true
 
       - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;"
+        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;" -C
 
       - name: Check collation
         shell: pwsh
         run: |
           ./Test-Collation -ExpectedCollation Latin1_General_BIN -UserName sa -Password c0MplicatedP@ssword
 
+      - name: Check full-text search enabled
+        shell: pwsh
+        run: |
+          ./Test-FullTextSearch -UserName sa -Password c0MplicatedP@ssword -ExpectedStatus Running
