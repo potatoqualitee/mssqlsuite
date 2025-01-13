@@ -139,25 +139,21 @@ if ("sqlpackage" -in $Install) {
 
 if ("localdb" -in $Install) {
     if ($iswindows) {
-        if ($Version -eq "2022") {
-            Write-Output "LocalDB for SQL Server 2022 not available yet."
-        } else {
-            Write-Host "Downloading SqlLocalDB"
-            $ProgressPreference = "SilentlyContinue"
-            switch ($Version) {
-                "2019" { $uriMSI = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi" }
-                "2022" { $uriMSI = "TBD" }
-            }
-            Invoke-WebRequest -Uri $uriMSI -OutFile SqlLocalDB.msi
-            Write-Host "Installing"
-            Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
-            Write-Host "Checking"
-            sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;" -C
-            sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
-            sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE" -C
-
-            Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
+        Write-Host "Downloading SqlLocalDB"
+        $ProgressPreference = "SilentlyContinue"
+        switch ($Version) {
+            "2019" { $uriMSI = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi" }
+            "2022" { $uriMSI = "https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SqlLocalDB.msi" }
         }
+        Invoke-WebRequest -Uri $uriMSI -OutFile SqlLocalDB.msi
+        Write-Host "Installing"
+        Start-Process -FilePath "SqlLocalDB.msi" -Wait -ArgumentList "/qn", "/norestart", "/l*v SqlLocalDBInstall.log", "IACCEPTSQLLOCALDBLICENSETERMS=YES";
+        Write-Host "Checking"
+        sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;" -C
+        sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
+        sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE" -C
+
+        Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
     } else {
         Write-Output "localdb cannot be installed on mac or linux"
     }

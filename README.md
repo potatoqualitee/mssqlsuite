@@ -105,7 +105,6 @@ jobs:
 Pull requests are welcome!
 
 ## TODO
-* Add LocalDB support for SQL Server 2022.
 * MacOS: Migrate docker from qemu to vz to speed up the process.
 * Wait for GitHub Actions to support more stuff to make the install sleeker.
 * Maybe more tools from [here](https://docs.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-download?view=sql-server-ver15).
