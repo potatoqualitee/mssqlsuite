@@ -3,13 +3,13 @@ This GitHub Action automatically installs a SQL Server suite of tools including 
 
 ## Documentation
 
-Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb`** with the options you need.
+Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb, fulltext`** with the options you need.
 
 ```yaml
     - name: Install a SQL Server suite of tools
       uses: potatoqualitee/mssqlsuite@v1.7
       with:
-        install: sqlengine, sqlclient, sqlpackage, localdb
+        install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 ### Inputs
 
-* `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, and `localdb`
+* `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, `localdb`, and `fulltext`
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `collation` - Change the collation associated with the SQL Server instance
 * `version` - The version of SQL Server to install in year format. Options are 2019 and 2022 (defaults to 2022)
@@ -38,14 +38,17 @@ None
 | SqlLocalDB | localdb | Linux | Not supported | N/A |
 | Client Tools | sqlclient | Linux | Includes sqlcmd, bcp, and odbc drivers | ~15s |
 | sqlpackage | sqlpackage | Linux | Installed from web | ~5s |
+| Full-Text Search | fulltext | Linux | Installed using apt-get | ~45s |
 | SQL Engine | sqlengine | Windows | Full install of SQL Server 2022, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL authentication both supported. | ~3m |
 | SqlLocalDB | localdb | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30s |
 | Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
 | sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~20s |
+| Full-Text Search | fulltext | Windows | Enabled during SQL Engine install | ~1m |
 | SQL Engine | sqlengine | macOS | Docker container with SQL Server 2022 accessible at `localhost`. | ~7m |
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
 | Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~20s |
 | sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
+| Full-Text Search | fulltext | macOS | Installed using apt-get | ~5m |
 
 ### Example workflows
 
@@ -91,7 +94,7 @@ jobs:
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1.7
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
+          install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
           version: 2019
           sa-password: c0MplicatedP@ssword
           show-log: true
