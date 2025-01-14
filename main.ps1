@@ -94,13 +94,23 @@ if ("sqlclient" -in $Install) {
 
         echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
     }
-    
-    if ($islinux) {
-        bash -c "curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
-        $null = bash -c "sudo apt-get update"
-        $log = bash -c "sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18"
 
+    if ($islinux) {
+        # Add Microsoft repository key
+        $log = bash -c "curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -"
+
+        # Add Microsoft repository
+        $log += bash -c "curl https://packages.microsoft.com/config/ubuntu/\$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
+
+        # Install prerequisites and SQL tools
+        $null = bash -c "sudo apt-get update"
+        $log += bash -c "sudo apt-get install -y apt-transport-https"
+        $log += bash -c "sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev"
+
+        # Add to PATH for current session and future sessions
         echo "/opt/mssql-tools18/bin" >> $env:GITHUB_PATH
+        $log += bash -c "echo 'export PATH=`$PATH:/opt/mssql-tools18/bin' | sudo tee -a /etc/bash.bashrc"
+        $log += bash -c "source /etc/bash.bashrc"
     }
 
     if ($ShowLog) {
