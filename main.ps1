@@ -21,7 +21,7 @@ if ("sqlengine" -in $Install) {
         Write-Output "linux/mac detected, downloading the docker container"
 
         if ("fulltext" -in $Install) {
-            docker build -f Dockerfile-$Version -t mssql-fulltext .
+            docker build -f $PSScriptRoot/Dockerfile-$Version -t mssql-fulltext .
             $img = "mssql-fulltext"
         } else {
             $img = "mcr.microsoft.com/mssql/server:$Version-latest"
