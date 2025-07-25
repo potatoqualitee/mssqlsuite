@@ -4,12 +4,18 @@ param (
     [string]$SaPassword = "dbatools.I0",
     [switch]$ShowLog,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
-    [ValidateSet("2022", "2019")]
+    [ValidateSet("2022", "2019", "2017", "2016")]
     [string]$Version = "2022"
 )
 
 if ("sqlengine" -in $Install) {
     Write-Output "Installing SQL Engine"
+
+    if (-not $IsWindows -and $Version -in "2016", "2017") {
+        Write-Warning "SQL Server 2016 and 2017 are not supported on Linux or Mac, please use 2019 or 2022"
+        return
+    }
+
     if ($ismacos) {
         Write-Output "mac detected, installing colima and docker"
         $Env:HOMEBREW_NO_AUTO_UPDATE = 1
@@ -54,6 +60,16 @@ if ("sqlengine" -in $Install) {
         Push-Location C:\temp
         $ProgressPreference = "SilentlyContinue"
         switch ($Version) {
+            "2016" {
+                $exeUri = "https://download.microsoft.com/download/C/5/0/C50D5F5E-1ADF-43EB-BF16-205F7EAB1944/SQLServer2016-SSEI-Dev.exe"
+                $boxUri = ""
+                $versionMajor = 13
+            }
+            "2017" {
+                $exeUri = "https://download.microsoft.com/download/5/A/7/5A7065A2-C81C-4A31-9972-8A31AC9388C1/SQLServer2017-SSEI-Dev.exe"
+                $boxUri = ""
+                $versionMajor = 14
+            }
             "2019" {
                 $exeUri = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.exe"
                 $boxUri = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-DEV-x64-ENU.box"
@@ -65,13 +81,44 @@ if ("sqlengine" -in $Install) {
                 $versionMajor = 16
             }
         }
-        Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
-        Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
-        Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
 
         $features = if ("fulltext" -in $Install) { "SQLEngine,FullText" } else { "SQLEngine" }
 
-        .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=MSSQLSERVER /FEATURES=$features /UPDATEENABLED=0 /SQLSVCACCOUNT='NT SERVICE\MSSQLSERVER' /SQLSYSADMINACCOUNTS='BUILTIN\ADMINISTRATORS' /TCPENABLED=1 /NPENABLED=0 /IACCEPTSQLSERVERLICENSETERMS /SQLCOLLATION=$Collation /USESQLRECOMMENDEDMEMORYLIMITS
+        $installArgs = @(
+            "/q",
+            "/ACTION=Install",
+            "/INSTANCENAME=MSSQLSERVER",
+            "/FEATURES=$features",
+            "/UPDATEENABLED=0",
+            "/SQLSVCACCOUNT=""NT SERVICE\MSSQLSERVER""",
+            "/SQLSYSADMINACCOUNTS=""BUILTIN\ADMINISTRATORS""",
+            "/TCPENABLED=1",
+            "/NPENABLED=0",
+            "/IACCEPTSQLSERVERLICENSETERMS",
+            "/SQLCOLLATION=$Collation"
+        )
+
+        if ($boxUri -eq "") {
+            # For 2016 & 2017.
+            # Download the small setup utility that allows us to download the full installation media
+            Invoke-WebRequest -Uri $exeUri -OutFile c:\temp\downloadsetup.exe
+            # Use the small setup utility to download the full installation media (*.box and *.exe) files to c:\temp
+            Start-Process -Wait -FilePath ./downloadsetup.exe -ArgumentList /ACTION:Download, /QUIET, /MEDIAPATH:c:\temp
+            # Rename the *.box and *.exe files to our standard name.  From here we can process the same as 2019 & 2022
+            Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
+            Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
+        } else {
+            # For 2019 & 2022
+            Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
+            Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
+            # Add argument here as it's not supported on older versions
+            $installArgs += "/USESQLRECOMMENDEDMEMORYLIMITS"
+        }
+        # Extracts media
+        Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
+
+        # Runs SQL Server installation
+        Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $installArgs -Wait -NoNewWindow
 
         Set-ItemProperty -path "HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQLSERVER\" -Name LoginMode -Value 2
         Restart-Service MSSQLSERVER
@@ -161,6 +208,8 @@ if ("localdb" -in $Install) {
         Write-Host "Downloading SqlLocalDB"
         $ProgressPreference = "SilentlyContinue"
         switch ($Version) {
+            "2017" { $uriMSI = "https://download.microsoft.com/download/E/F/2/EF23C21D-7860-4F05-88CE-39AA114B014B/SqlLocalDB.msi" }
+            "2016" { $uriMSI = "https://download.microsoft.com/download/4/1/A/41AD6EDE-9794-44E3-B3D5-A1AF62CD7A6F/sql16_sp2_dlc/en-us/SqlLocalDB.msi" }
             "2019" { $uriMSI = "https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SqlLocalDB.msi" }
             "2022" { $uriMSI = "https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SqlLocalDB.msi" }
         }
