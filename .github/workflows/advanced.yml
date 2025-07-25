@@ -22,7 +22,7 @@ jobs:
               version: "2016"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install sqlengine with full-text search
         uses: ./

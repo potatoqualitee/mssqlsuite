@@ -19,7 +19,7 @@ if ("sqlengine" -in $Install) {
     if ($ismacos) {
         Write-Output "mac detected, installing colima and docker"
         $Env:HOMEBREW_NO_AUTO_UPDATE = 1
-        brew install docker colima qemu
+        brew install docker colima qemu lima-additional-guestagents
         colima --verbose start -a x86_64 --cpu 4 --memory 4 --runtime docker
     }
 
