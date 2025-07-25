@@ -10,7 +10,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        version: ["2019", "2022"]
+        version: ["2019", "2022", "2017", "2016"]
+        exclude:
+            - os: ubuntu-latest
+              version: "2017"
+            - os: ubuntu-latest
+              version: "2016"
+            - os: macOS-latest
+              version: "2017"
+            - os: macOS-latest
+              version: "2016"
 
     steps:
       - uses: actions/checkout@v4
