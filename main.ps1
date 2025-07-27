@@ -52,21 +52,6 @@ if ("sqlengine" -in $Install) {
         # Rename sa user if custom admin username is specified
         if ($AdminUsername -ne "sa") {
             Write-Output "Renaming sa user to: $AdminUsername"
-
-            # Ensure sqlcmd is available for sa renaming
-            if ($islinux) {
-                Write-Output "Installing sqlcmd for sa renaming"
-                bash -c "curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -"
-                bash -c "curl https://packages.microsoft.com/config/ubuntu/\$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
-                bash -c "sudo apt-get update"
-                bash -c "sudo ACCEPT_EULA=Y apt-get install -y sqlcmd"
-            }
-
-            if ($ismacos) {
-                Write-Output "Installing sqlcmd for sa renaming"
-                brew install sqlcmd
-            }
-
             $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
             # Use sqlcmd from host to connect to the Docker container
             sqlcmd -S localhost -U sa -P "$SaPassword" -Q "$renameSql" -C
@@ -153,13 +138,6 @@ if ("sqlengine" -in $Install) {
         # Rename sa user if custom admin username is specified
         if ($AdminUsername -ne "sa") {
             Write-Output "Renaming sa user to: $AdminUsername"
-
-            # Ensure sqlcmd is available for sa renaming (Windows should have it, but install if needed)
-            if (-not (Get-Command sqlcmd -ErrorAction SilentlyContinue)) {
-                Write-Output "Installing sqlcmd for sa renaming"
-                choco install sqlcmd -y --no-progress
-            }
-
             $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
             sqlcmd -S localhost -q "$renameSql" -C
             Write-Output "sa user renamed to '$AdminUsername' successfully"
@@ -178,7 +156,7 @@ if ("sqlclient" -in $Install) {
     if ($ismacos) {
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
         #$null = brew update
-        $log = brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18 sqlcmd
+        $log = brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
 
         echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
     }
@@ -193,7 +171,7 @@ if ("sqlclient" -in $Install) {
         # Install prerequisites and SQL tools
         $null = bash -c "sudo apt-get update"
         $log += bash -c "sudo apt-get install -y apt-transport-https"
-        $log += bash -c "sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 sqlcmd unixodbc-dev"
+        $log += bash -c "sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev"
 
         # Add to PATH for current session and future sessions
         echo "/opt/mssql-tools18/bin" >> $env:GITHUB_PATH
@@ -234,7 +212,7 @@ if ("sqlpackage" -in $Install) {
     }
 
     if ($iswindows) {
-        $log = choco install sqlpackage sqlcmd -y --no-progress
+        $log = choco install sqlpackage
         if ($ShowLog) {
             $log
             sqlpackage /version
@@ -265,13 +243,6 @@ if ("localdb" -in $Install) {
         # Rename sa user if custom admin username is specified
         if ($AdminUsername -ne "sa") {
             Write-Host "Renaming sa user to: $AdminUsername"
-
-            # Ensure sqlcmd is available for sa renaming (Windows should have it, but install if needed)
-            if (-not (Get-Command sqlcmd -ErrorAction SilentlyContinue)) {
-                Write-Host "Installing sqlcmd for sa renaming"
-                choco install sqlcmd -y --no-progress
-            }
-
             $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
             sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "$renameSql" -C
             Write-Host "sa user renamed to '$AdminUsername' successfully"
