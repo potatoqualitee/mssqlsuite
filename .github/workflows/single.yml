@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.9
+        uses: potatoqualitee/mssqlsuite@v1.10
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
 
@@ -20,3 +20,30 @@ jobs:
         shell: pwsh
         run: |
           ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName sa -Password dbatools.I0
+
+  test-custom-admin:
+    name: Test Custom Admin Username
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the action with custom admin
+        uses: potatoqualitee/mssqlsuite@v1.10
+        with:
+          install: sqlengine, sqlclient
+          admin-username: dbadmin
+          sa-password: TestP@ssword123
+
+      - name: Test connection with custom admin user
+        run: sqlcmd -S localhost -U dbadmin -P TestP@ssword123 -d tempdb -Q "SELECT @@version;" -C
+
+      - name: Check collation with custom admin
+        shell: pwsh
+        run: |
+          ./Test-Collation -ExpectedCollation SQL_Latin1_General_CP1_CI_AS -UserName dbadmin -Password TestP@ssword123
+
+      - name: Test custom admin functionality
+        shell: pwsh
+        run: |
+          ./Test-CustomAdmin -AdminUsername dbadmin -Password TestP@ssword123

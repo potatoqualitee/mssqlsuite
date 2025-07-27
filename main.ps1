@@ -2,11 +2,36 @@ param (
     [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb", "fulltext")]
     [string[]]$Install,
     [string]$SaPassword = "dbatools.I0",
+    [string]$AdminUsername = "sa",
     [switch]$ShowLog,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
     [ValidateSet("2022", "2019", "2017", "2016")]
     [string]$Version = "2022"
 )
+
+# Install sqlcmd first to ensure it's available for any sa renaming operations
+Write-Output "Installing sqlcmd before proceeding with other installations"
+
+if ($islinux) {
+    Write-Output "Installing sqlcmd on Linux"
+    bash -c "curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc"
+    bash -c "curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
+    bash -c "sudo apt-get update"
+    bash -c "sudo apt-get install -y sqlcmd"
+}
+
+if ($ismacos) {
+    Write-Output "Installing sqlcmd on macOS"
+    brew update
+    brew install sqlcmd
+}
+
+if ($iswindows) {
+    Write-Output "Installing sqlcmd on Windows"
+    choco install sqlcmd -y --no-progress
+}
+
+Write-Output "sqlcmd installation completed"
 
 if ("sqlengine" -in $Install) {
     Write-Output "Installing SQL Engine"
@@ -46,6 +71,15 @@ if ("sqlengine" -in $Install) {
         if ($ShowLog) {
             docker ps -a
             docker logs -t sql
+        }
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Output "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            # Use sqlcmd from host to connect to the Docker container
+            sqlcmd -S localhost -U sa -P "$SaPassword" -Q "$renameSql" -C
+            Write-Output "sa user renamed to '$AdminUsername' successfully"
         }
 
         Write-Output "docker container running - sql server accessible at localhost"
@@ -124,6 +158,15 @@ if ("sqlengine" -in $Install) {
         Restart-Service MSSQLSERVER
         sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
         sqlcmd -S localhost -q "ALTER LOGIN [sa] ENABLE" -C
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Output "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            sqlcmd -S localhost -q "$renameSql" -C
+            Write-Output "sa user renamed to '$AdminUsername' successfully"
+        }
+
         Pop-Location
 
         Write-Output "sql server $Version installed at localhost and accessible with both windows and sql auth"
@@ -137,6 +180,7 @@ if ("sqlclient" -in $Install) {
     if ($ismacos) {
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
         #$null = brew update
+        brew uninstall sqlcmd
         $log = brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
 
         echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
@@ -220,6 +264,14 @@ if ("localdb" -in $Install) {
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;" -C
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE" -C
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Host "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "$renameSql" -C
+            Write-Host "sa user renamed to '$AdminUsername' successfully"
+        }
 
         Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
     } else {
