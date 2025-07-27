@@ -9,6 +9,29 @@ param (
     [string]$Version = "2022"
 )
 
+# Install sqlcmd first to ensure it's available for any sa renaming operations
+Write-Output "Installing sqlcmd before proceeding with other installations"
+
+if ($islinux) {
+    Write-Output "Installing sqlcmd on Linux"
+    bash -c "curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -"
+    bash -c "curl https://packages.microsoft.com/config/ubuntu/\$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
+    bash -c "sudo apt-get update"
+    bash -c "sudo ACCEPT_EULA=Y apt-get install -y sqlcmd"
+}
+
+if ($ismacos) {
+    Write-Output "Installing sqlcmd on macOS"
+    brew install sqlcmd
+}
+
+if ($iswindows) {
+    Write-Output "Installing sqlcmd on Windows"
+    choco install sqlcmd -y --no-progress
+}
+
+Write-Output "sqlcmd installation completed"
+
 if ("sqlengine" -in $Install) {
     Write-Output "Installing SQL Engine"
 
