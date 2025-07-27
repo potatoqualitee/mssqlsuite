@@ -2,6 +2,7 @@ param (
     [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb", "fulltext")]
     [string[]]$Install,
     [string]$SaPassword = "dbatools.I0",
+    [string]$AdminUsername = "sa",
     [switch]$ShowLog,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
     [ValidateSet("2022", "2019", "2017", "2016")]
@@ -46,6 +47,15 @@ if ("sqlengine" -in $Install) {
         if ($ShowLog) {
             docker ps -a
             docker logs -t sql
+        }
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Output "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            # Use sqlcmd from host to connect to the Docker container
+            sqlcmd -S localhost -U sa -P "$SaPassword" -Q "$renameSql" -C
+            Write-Output "sa user renamed to '$AdminUsername' successfully"
         }
 
         Write-Output "docker container running - sql server accessible at localhost"
@@ -124,6 +134,15 @@ if ("sqlengine" -in $Install) {
         Restart-Service MSSQLSERVER
         sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
         sqlcmd -S localhost -q "ALTER LOGIN [sa] ENABLE" -C
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Output "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            sqlcmd -S localhost -q "$renameSql" -C
+            Write-Output "sa user renamed to '$AdminUsername' successfully"
+        }
+
         Pop-Location
 
         Write-Output "sql server $Version installed at localhost and accessible with both windows and sql auth"
@@ -220,6 +239,14 @@ if ("localdb" -in $Install) {
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT @@VERSION;" -C
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
         sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "ALTER LOGIN [sa] ENABLE" -C
+
+        # Rename sa user if custom admin username is specified
+        if ($AdminUsername -ne "sa") {
+            Write-Host "Renaming sa user to: $AdminUsername"
+            $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
+            sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "$renameSql" -C
+            Write-Host "sa user renamed to '$AdminUsername' successfully"
+        }
 
         Write-Host "SqlLocalDB $Version installed and accessible at (localdb)\MSSQLLocalDB"
     } else {

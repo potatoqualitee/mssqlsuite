@@ -11,6 +11,10 @@ inputs:
     description: "The sa password for the SQL instance"
     required: false
     default: "dbatools.I0"
+  admin-username:
+    description: "The admin username for the SQL instance. When specified, the built-in sa user will be renamed to this username"
+    required: false
+    default: "sa"
   show-log:
     description: "Show the log file for the docker container"
     required: false
@@ -40,6 +44,7 @@ runs:
         $params = @{
             Install         = ("${{ inputs.install }}" -split ",").Trim()
             SaPassword      = "${{ inputs.sa-password }}"
+            AdminUsername   = "${{ inputs.admin-username }}"
             ShowLog         = ("${{ inputs.show-log }}" -ieq "true")
             Collation       = "${{ inputs.Collation }}"
             Version         = "${{ inputs.Version }}"

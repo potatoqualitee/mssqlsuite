@@ -7,7 +7,7 @@ Just copy the code below and modify the line **`install: sqlengine, sqlclient, s
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/mssqlsuite@v1.9
+      uses: potatoqualitee/mssqlsuite@v1.10
       with:
         install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
 ```
@@ -22,6 +22,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 * `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, `localdb`, and `fulltext`
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
+* `admin-username` - The admin username for the SQL instance. The default is `sa`. When specified, the built-in `sa` user will be renamed to this username
 * `collation` - Change the collation associated with the SQL Server instance
 * `version` - The version of SQL Server to install in year format. Options are 2019 and 2022 (defaults to 2022)
 * `show-log` - Show logs, including docker logs, for troubleshooting
@@ -66,7 +67,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.9
+        uses: potatoqualitee/mssqlsuite@v1.10
         with:
           install: sqlengine, sqlpackage
 
@@ -92,7 +93,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.9
+        uses: potatoqualitee/mssqlsuite@v1.10
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
           version: 2019
@@ -102,6 +103,30 @@ jobs:
 
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;" -C
+```
+
+Using a custom admin username instead of the default 'sa'
+
+```yaml
+on: [push]
+
+jobs:
+  test-custom-admin:
+    name: Test with custom admin user
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the action with custom admin
+        uses: potatoqualitee/mssqlsuite@v1.10
+        with:
+          install: sqlengine, sqlclient
+          admin-username: dbadmin
+          sa-password: MySecureP@ssword123
+
+      - name: Test connection with custom admin user
+        run: sqlcmd -S localhost -U dbadmin -P MySecureP@ssword123 -d tempdb -Q "SELECT @@version;" -C
 ```
 
 ## Contributing
