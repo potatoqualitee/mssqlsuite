@@ -180,8 +180,7 @@ if ("sqlclient" -in $Install) {
     if ($ismacos) {
         brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
         #$null = brew update
-        $log = brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
-        $LASTEXITCODE = 0
+        $log = Invoke-Expression '& brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18 || $true'
 
         echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
     }
