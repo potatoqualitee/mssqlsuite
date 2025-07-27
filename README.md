@@ -1,6 +1,8 @@
 # mssqlsuite
 This GitHub Action automatically installs a SQL Server suite of tools including sqlcmd, bcp, sqlpackage, the sql engine, localdb and more for Windows, macOS and Linux.
 
+> **Note:** `sqlcmd` is always installed by default because this action needs it to execute some SQL.
+
 ## Documentation
 
 Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb, fulltext`** with the options you need.
@@ -47,7 +49,7 @@ None
 | Full-Text Search | fulltext | Windows | Enabled during SQL Engine install | ~1m |
 | SQL Engine | sqlengine | macOS | Docker container with SQL Server 2022 accessible at `localhost`. | ~7m |
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
-| Client Tools | sqlclient | macOS | Includes sqlcmd, bcp, and odbc drivers | ~20s |
+| Client Tools | sqlclient | macOS | Includes bcp and odbc drivers | ~20s |
 | sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
 | Full-Text Search | fulltext | macOS | Installed using apt-get | ~5m |
 
