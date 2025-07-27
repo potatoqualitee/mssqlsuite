@@ -14,14 +14,15 @@ Write-Output "Installing sqlcmd before proceeding with other installations"
 
 if ($islinux) {
     Write-Output "Installing sqlcmd on Linux"
-    bash -c "curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -"
-    bash -c "curl https://packages.microsoft.com/config/ubuntu/\$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
+    bash -c "curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc"
+    bash -c "curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list"
     bash -c "sudo apt-get update"
-    bash -c "sudo ACCEPT_EULA=Y apt-get install -y sqlcmd"
+    bash -c "sudo apt-get install -y sqlcmd"
 }
 
 if ($ismacos) {
     Write-Output "Installing sqlcmd on macOS"
+    brew update
     brew install sqlcmd
 }
 
