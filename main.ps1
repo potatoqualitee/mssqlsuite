@@ -246,6 +246,16 @@ if ("sqlengine" -in $Install) {
             Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
 
             Start-Sleep -Seconds 5 # Wait for SSIS service to start
+            # Look for ISServerDBUpgrade.sql
+            $upgradeScript = Get-ChildItem "C:\Program Files\Microsoft SQL Server\*\DTS\Binn\ISServerDBUpgrade.sql" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+            if ($upgradeScript) {
+                Write-Output "Running SSISDB upgrade script to enable catalog.create_catalog"
+                sqlcmd -S localhost -d msdb -i $upgradeScript.FullName -C
+            } else {
+                Write-Warning "Could not find ISServerDBUpgrade.sql - SSISDB catalog setup skipped"
+            }
+
             sqlcmd -S localhost -Q "IF DB_ID('SSISDB') IS NULL CREATE CATALOG SSISDB AUTHORIZATION dbo ENCRYPTION BY PASSWORD = '$SaPassword';"
 
             Pop-Location
