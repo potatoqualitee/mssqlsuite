@@ -51,7 +51,7 @@ None
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
 | Client Tools | sqlclient | macOS | Includes bcp and odbc drivers | ~20s |
 | sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
-| Full-Text Search | fulltext | macOS | Installed using apt-get | ~5m |
+| Full-Text Search | fulltext | macOS | Available only via Docker container with SQL Server (see SQL Engine above) | ~7m |
 
 ### Example workflows
 
