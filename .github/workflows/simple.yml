@@ -25,7 +25,7 @@ jobs:
       - name: Run the action
         uses: ./
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
+          install: sqlengine, sqlclient, sqlpackage, localdb, ssis
           version: ${{ matrix.version }}
 
       - name: Run sqlcmd
@@ -40,3 +40,9 @@ jobs:
         shell: pwsh
         run: |
           ./Test-FullTextSearch -UserName sa -Password c0MplicatedP@ssword -ExpectedStatus NotRunning
+
+      - name: Check SSISDB catalog (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./Test-SSISCatalog.ps1 -UserName sa -Password dbatools.I0

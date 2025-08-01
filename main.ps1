@@ -1,5 +1,5 @@
 param (
-    [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb", "fulltext")]
+    [ValidateSet("sqlclient", "sqlpackage", "sqlengine", "localdb", "fulltext", "ssis")]
     [string[]]$Install,
     [string]$SaPassword = "dbatools.I0",
     [string]$AdminUsername = "sa",
@@ -116,7 +116,15 @@ if ("sqlengine" -in $Install) {
             }
         }
 
-        $features = if ("fulltext" -in $Install) { "SQLEngine,FullText" } else { "SQLEngine" }
+        if ("ssis" -in $Install -and "fulltext" -in $Install) {
+            $features = "SQLEngine,FullText,IS"
+        } elseif ("ssis" -in $Install) {
+            $features = "SQLEngine,IS"
+        } elseif ("fulltext" -in $Install) {
+            $features = "SQLEngine,FullText"
+        } else {
+            $features = "SQLEngine"
+        }
 
         $installArgs = @(
             "/q",
