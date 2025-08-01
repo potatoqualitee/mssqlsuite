@@ -159,8 +159,7 @@ if ("sqlengine" -in $Install) {
 
             $installArgs += @(
                 "/ISSVCACCOUNT=""$dtsAccount""",
-                "/ISSVCSTARTUPTYPE=Automatic",
-                "/ISSERVERMODE=Project"
+                "/ISSVCSTARTUPTYPE=Automatic"
             )
         }
 
