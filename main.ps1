@@ -202,6 +202,26 @@ if ("sqlengine" -in $Install) {
 
         # After SQL Server and SSIS install, create SSISDB catalog if requested
         if ("ssis" -in $Install) {
+            $setupPaths = @(
+                "C:\Program Files\Microsoft SQL Server\150\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files\Microsoft SQL Server\160\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files\Microsoft SQL Server\140\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files\Microsoft SQL Server\120\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files (x86)\Microsoft SQL Server\150\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files (x86)\Microsoft SQL Server\160\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files (x86)\Microsoft SQL Server\140\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files (x86)\Microsoft SQL Server\130\DTS\Binn\ISServerSetup.exe"
+                "C:\Program Files (x86)\Microsoft SQL Server\120\DTS\Binn\ISServerSetup.exe"
+            )
+            $setupPath = $setupPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $setupPath) {
+                Write-Error "ISServerSetup.exe not found in expected locations. SSISDB catalog cannot be created."
+                exit 1
+            }
+            & $setupPath /INSTALLISSERVER
+            Restart-Service -Name 'MSSQLSERVER' -Force
+
             Write-Output "Creating SSISDB catalog with admin password"
             Start-Sleep -Seconds 10 # Wait for SQL Server to be fully up
             try {
