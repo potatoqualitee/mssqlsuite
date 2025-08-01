@@ -131,6 +131,8 @@ if ("sqlengine" -in $Install) {
             $features = "SQLEngine"
         }
 
+        Write-Warning "FEATURES: $features"
+
         $installArgs = @(
             "/q",
             "/ACTION=Install",
