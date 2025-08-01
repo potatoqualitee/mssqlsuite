@@ -147,22 +147,6 @@ if ("sqlengine" -in $Install) {
             "/SQLCOLLATION=$Collation"
         )
 
-        # if ssis then add extra args
-        if ("ssis" -in $Install) {
-            switch ($Version) {
-                "2016" { $dtsAccount = "NT Service\MsDtsServer130" }
-                "2017" { $dtsAccount = "NT Service\MsDtsServer140" }
-                "2019" { $dtsAccount = "NT Service\MsDtsServer150" }
-                "2022" { $dtsAccount = "NT Service\MsDtsServer160" }
-                default { throw "Unsupported version for SSIS account mapping: $Version" }
-            }
-
-            $installArgs += @(
-                "/ISSVCACCOUNT=""$dtsAccount""",
-                "/ISSVCSTARTUPTYPE=Automatic"
-            )
-        }
-
         Write-Warning "INSTALL ARGS: $installArgs"
 
         if ($boxUri -eq "") {
@@ -202,37 +186,64 @@ if ("sqlengine" -in $Install) {
 
         # After SQL Server and SSIS install, create SSISDB catalog if requested
         if ("ssis" -in $Install) {
-            $setupPaths = @(
-                "C:\Program Files\Microsoft SQL Server\150\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files\Microsoft SQL Server\160\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files\Microsoft SQL Server\140\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files\Microsoft SQL Server\130\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files\Microsoft SQL Server\120\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files (x86)\Microsoft SQL Server\150\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files (x86)\Microsoft SQL Server\160\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files (x86)\Microsoft SQL Server\140\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files (x86)\Microsoft SQL Server\130\DTS\Binn\ISServerSetup.exe"
-                "C:\Program Files (x86)\Microsoft SQL Server\120\DTS\Binn\ISServerSetup.exe"
-            )
+            # SSIS-only install support (2016–2022 Developer ISOs)
+            # If only SSIS is requested (not sqlengine), perform a silent Integration Services-only install
+            # NOTE: This reuses the same $exeUri and $boxUri variables as the main SQL Server install logic above.
 
-            Get-ChildItem -Recurse "C:\Program Files\Microsoft SQL Server" | Write-Warning
-            Get-ChildItem -Recurse "C:\Program Files (x86)\Microsoft SQL Server" | Write-Warning
-            $setupPath = $setupPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $setupPath) {
-                Write-Error "ISServerSetup.exe not found in expected locations. SSISDB catalog cannot be created."
-                exit 1
-            }
-            & $setupPath /INSTALLISSERVER
-            Restart-Service -Name 'MSSQLSERVER' -Force
+            if (-not ("sqlengine" -in $Install)) {
+                Write-Output "Performing SSIS-only install for SQL Server $Version"
 
-            Write-Output "Creating SSISDB catalog with admin password"
-            Start-Sleep -Seconds 10 # Wait for SQL Server to be fully up
-            try {
-                sqlcmd -S localhost -q "EXEC msdb.dbo.sp_ssis_startup" -C
-                $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
-                sqlcmd -S localhost -q "$createCatalogScript" -C
-            } catch {
-                Write-Warning "SSISDB catalog creation failed or already exists"
+                # Use version-specific instance name for side-by-side support
+                switch ($Version) {
+                    "2016" { $instanceName = "SSIS16" }
+                    "2017" { $instanceName = "SSIS17" }
+                    "2019" { $instanceName = "SSIS19" }
+                    "2022" { $instanceName = "SSIS22" }
+                    default { throw "Unsupported SQL Server version for SSIS: $Version" }
+                }
+
+                # Download and extract media (reuses $exeUri and $boxUri from main logic)
+                if (-not (Test-Path C:\temp)) { mkdir C:\temp }
+                Push-Location C:\temp
+                $ProgressPreference = "SilentlyContinue"
+
+                if ($boxUri -eq "") {
+                    # For 2016 & 2017
+                    if (-not (Test-Path "downloadsetup.exe")) {
+                        Invoke-WebRequest -Uri $exeUri -OutFile downloadsetup.exe
+                        Start-Process -Wait -FilePath ./downloadsetup.exe -ArgumentList /ACTION:Download, /QUIET, /MEDIAPATH:C:\temp
+                        Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
+                        Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
+                    }
+                } else {
+                    # For 2019 & 2022
+                    if (-not (Test-Path "sqlsetup.exe")) {
+                        Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
+                    }
+                    if (-not (Test-Path "sqlsetup.box")) {
+                        Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
+                    }
+                }
+
+                # Extracts media
+                Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
+
+                # Prepare SSIS-only install arguments
+                $ssisArgs = @(
+                    "/Q",
+                    "/ACTION=Install",
+                    "/FEATURES=IS",
+                    "/INSTANCENAME=$instanceName",
+                    "/ISSVCSTARTUPTYPE=Automatic",
+                    "/IACCEPTSQLSERVERLICENSETERMS"
+                )
+
+                # Run SSIS-only install
+                Write-Output "Running SSIS-only setup: .\setup\setup.exe $($ssisArgs -join ' ')"
+                Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
+
+                Pop-Location
+                Write-Output "SSIS-only install for SQL Server $Version complete"
             }
         }
 
