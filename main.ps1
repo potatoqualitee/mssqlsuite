@@ -254,6 +254,7 @@ if ("sqlengine" -in $Install) {
                 sqlcmd -S localhost -d msdb -i $upgradeScript.FullName -C
             } else {
                 Write-Warning "Could not find ISServerDBUpgrade.sql - SSISDB catalog setup skipped"
+                Get-ChildItem -Recurse "C:\Program Files\Microsoft SQL Server" -EA SilentlyContinue | Where-Object Extension -in '.exe','.sql' | Select-Object -ExpandProperty FullName | Write-Warning
             }
 
             sqlcmd -S localhost -Q "IF DB_ID('SSISDB') IS NULL CREATE CATALOG SSISDB AUTHORIZATION dbo ENCRYPTION BY PASSWORD = '$SaPassword';"
