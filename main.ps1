@@ -147,6 +147,14 @@ if ("sqlengine" -in $Install) {
             "/SQLCOLLATION=$Collation"
         )
 
+        # if ssis then add extra args
+        if ("ssis" -in $Install) {
+            $installArgs += @(
+                "/ISSTARTUPTYPE=Automatic",
+                "/ISManagedSvcStartupType=Automatic"
+            )
+        }
+
         Write-Warning "INSTALL ARGS: $installArgs"
 
         if ($boxUri -eq "") {
