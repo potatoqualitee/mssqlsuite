@@ -121,17 +121,11 @@ if ("sqlengine" -in $Install) {
             }
         }
 
-        if ("ssis" -in $Install -and "fulltext" -in $Install) {
-            $features = "SQLEngine,FullText,IS"
-        } elseif ("ssis" -in $Install) {
-            $features = "SQLEngine,IS"
-        } elseif ("fulltext" -in $Install) {
+        if ("fulltext" -in $Install) {
             $features = "SQLEngine,FullText"
         } else {
             $features = "SQLEngine"
         }
-
-        Write-Warning "FEATURES: $features"
 
         $installArgs = @(
             "/q",
