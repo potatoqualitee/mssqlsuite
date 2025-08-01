@@ -149,9 +149,18 @@ if ("sqlengine" -in $Install) {
 
         # if ssis then add extra args
         if ("ssis" -in $Install) {
+            switch ($Version) {
+                "2016" { $dtsAccount = "NT Service\MsDtsServer130" }
+                "2017" { $dtsAccount = "NT Service\MsDtsServer140" }
+                "2019" { $dtsAccount = "NT Service\MsDtsServer150" }
+                "2022" { $dtsAccount = "NT Service\MsDtsServer160" }
+                default { throw "Unsupported version for SSIS account mapping: $Version" }
+            }
+
             $installArgs += @(
-                "/ISSTARTUPTYPE=Automatic",
-                "/ISManagedSvcStartupType=Automatic"
+                "/ISSVCACCOUNT=""$dtsAccount""",
+                "/ISSVCSTARTUPTYPE=Automatic",
+                "/ISSERVERMODE=Project"
             )
         }
 
