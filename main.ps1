@@ -128,16 +128,6 @@ if ("sqlengine" -in $Install) {
         } elseif ("fulltext" -in $Install) {
             $features = "SQLEngine,FullText"
         } else {
-        # After SQL Server and SSIS install, create SSISDB catalog if requested
-        if ("ssis" -in $Install) {
-            Write-Output "Creating SSISDB catalog with admin password"
-            $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
-            try {
-                sqlcmd -S localhost -U $AdminUsername -P $SaPassword -d master -Q $createCatalogScript -b
-            } catch {
-                Write-Warning "SSISDB catalog creation failed or already exists"
-            }
-        }
             $features = "SQLEngine"
         }
 
@@ -188,6 +178,17 @@ if ("sqlengine" -in $Install) {
             $renameSql = "ALTER LOGIN [sa] WITH NAME = [$AdminUsername];"
             sqlcmd -S localhost -q "$renameSql" -C
             Write-Output "sa user renamed to '$AdminUsername' successfully"
+        }
+
+        # After SQL Server and SSIS install, create SSISDB catalog if requested
+        if ("ssis" -in $Install) {
+            Write-Output "Creating SSISDB catalog with admin password"
+            $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
+            try {
+                sqlcmd -S localhost -q "$createCatalogScript" -C
+            } catch {
+                Write-Warning "SSISDB catalog creation failed or already exists"
+            }
         }
 
         Pop-Location
