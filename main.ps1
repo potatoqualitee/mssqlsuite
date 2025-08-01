@@ -147,6 +147,8 @@ if ("sqlengine" -in $Install) {
             "/SQLCOLLATION=$Collation"
         )
 
+        Write-Warning "INSTALL ARGS: $installArgs"
+
         if ($boxUri -eq "") {
             # For 2016 & 2017.
             # Download the small setup utility that allows us to download the full installation media
