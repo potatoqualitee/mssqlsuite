@@ -8,6 +8,11 @@ param (
     [ValidateSet("2022", "2019", "2017", "2016")]
     [string]$Version = "2022"
 )
+# Warn if SSIS is requested on unsupported OS
+if (("ssis" -in $Install) -and ($islinux -or $ismacos)) {
+    Write-Warning "The 'ssis' option is only supported on Windows. Skipping SSIS installation."
+    $Install = $Install | Where-Object { $_ -ne "ssis" }
+}
 
 # Install sqlcmd first to ensure it's available for any sa renaming operations
 Write-Output "Installing sqlcmd before proceeding with other installations"
