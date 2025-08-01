@@ -214,6 +214,9 @@ if ("sqlengine" -in $Install) {
                 "C:\Program Files (x86)\Microsoft SQL Server\130\DTS\Binn\ISServerSetup.exe"
                 "C:\Program Files (x86)\Microsoft SQL Server\120\DTS\Binn\ISServerSetup.exe"
             )
+
+            Get-ChildItem -Recurse "C:\Program Files\Microsoft SQL Server" | Write-Warning
+            Get-ChildItem -Recurse "C:\Program Files (x86)\Microsoft SQL Server" | Write-Warning
             $setupPath = $setupPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
             if (-not $setupPath) {
                 Write-Error "ISServerSetup.exe not found in expected locations. SSISDB catalog cannot be created."
