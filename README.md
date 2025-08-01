@@ -9,7 +9,7 @@ Just copy the code below and modify the line **`install: sqlengine, sqlclient, s
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/mssqlsuite@v1.10
+      uses: potatoqualitee/mssqlsuite@v1.11
       with:
         install: sqlengine, sqlclient, sqlpackage, localdb, fulltext, ssis
 ```
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.10
+        uses: potatoqualitee/mssqlsuite@v1.11
         with:
           install: sqlengine, sqlpackage
 
@@ -98,7 +98,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.10
+        uses: potatoqualitee/mssqlsuite@v1.11
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb, fulltext, ssis
           version: 2019
@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action with custom admin
-        uses: potatoqualitee/mssqlsuite@v1.10
+        uses: potatoqualitee/mssqlsuite@v1.11
         with:
           install: sqlengine, sqlclient
           admin-username: dbadmin
@@ -165,7 +165,7 @@ The `SqlServer` PowerShell module is included on the Windows runner. You can fin
 **Example:**
 ```yaml
     - name: Install SQL Server with SSIS
-      uses: potatoqualitee/mssqlsuite@v1.10
+      uses: potatoqualitee/mssqlsuite@v1.11
       with:
         install: sqlengine, ssis
 ```

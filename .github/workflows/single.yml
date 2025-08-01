@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.10
+        uses: potatoqualitee/mssqlsuite@v1.11
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb
 
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action with custom admin
-        uses: potatoqualitee/mssqlsuite@v1.10
+        uses: potatoqualitee/mssqlsuite@v1.11
         with:
           install: sqlengine, sqlclient
           admin-username: dbadmin
