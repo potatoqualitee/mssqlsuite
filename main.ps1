@@ -14,6 +14,12 @@ if (("ssis" -in $Install) -and ($islinux -or $ismacos)) {
     $Install = $Install | Where-Object { $_ -ne "ssis" }
 }
 
+# if ssis then also ensure sqlengine
+if ("ssis" -in $Install -and -not ("sqlengine" -in $Install)) {
+    Write-Output "Adding sqlengine to install list because ssis is requested"
+    $Install += "sqlengine"
+}
+
 # Install sqlcmd first to ensure it's available for any sa renaming operations
 Write-Output "Installing sqlcmd before proceeding with other installations"
 
@@ -180,65 +186,67 @@ if ("sqlengine" -in $Install) {
 
         # After SQL Server and SSIS install, create SSISDB catalog if requested
         if ("ssis" -in $Install) {
-            # SSIS-only install support (2016–2022 Developer ISOs)
-            # If only SSIS is requested (not sqlengine), perform a silent Integration Services-only install
-            # NOTE: This reuses the same $exeUri and $boxUri variables as the main SQL Server install logic above.
-
-            if (-not ("sqlengine" -in $Install)) {
-                Write-Output "Performing SSIS-only install for SQL Server $Version"
-
-                # Use version-specific instance name for side-by-side support
-                switch ($Version) {
-                    "2016" { $instanceName = "SSIS16" }
-                    "2017" { $instanceName = "SSIS17" }
-                    "2019" { $instanceName = "SSIS19" }
-                    "2022" { $instanceName = "SSIS22" }
-                    default { throw "Unsupported SQL Server version for SSIS: $Version" }
-                }
-
-                # Download and extract media (reuses $exeUri and $boxUri from main logic)
-                if (-not (Test-Path C:\temp)) { mkdir C:\temp }
-                Push-Location C:\temp
-                $ProgressPreference = "SilentlyContinue"
-
-                if ($boxUri -eq "") {
-                    # For 2016 & 2017
-                    if (-not (Test-Path "downloadsetup.exe")) {
-                        Invoke-WebRequest -Uri $exeUri -OutFile downloadsetup.exe
-                        Start-Process -Wait -FilePath ./downloadsetup.exe -ArgumentList /ACTION:Download, /QUIET, /MEDIAPATH:C:\temp
-                        Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
-                        Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
+            # Detect the default or previously installed SQL Server instance
+            $instanceName = "MSSQLSERVER"
+            try {
+                $regPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL"
+                if (Test-Path $regPath) {
+                    $instances = Get-ItemProperty -Path $regPath | Select-Object -ExpandProperty PSObject.Properties | ForEach-Object { $_.Name }
+                    if ($instances.Count -gt 0) {
+                        $instanceName = $instances[0]
+                        Write-Output "Detected SQL Server instance: $instanceName"
+                    } else {
+                        Write-Output "No SQL Server instances found in registry, defaulting to MSSQLSERVER"
                     }
                 } else {
-                    # For 2019 & 2022
-                    if (-not (Test-Path "sqlsetup.exe")) {
-                        Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
-                    }
-                    if (-not (Test-Path "sqlsetup.box")) {
-                        Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
-                    }
+                    Write-Output "SQL Server instance registry path not found, defaulting to MSSQLSERVER"
                 }
-
-                # Extracts media
-                Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
-
-                # Prepare SSIS-only install arguments
-                $ssisArgs = @(
-                    "/Q",
-                    "/ACTION=Install",
-                    "/FEATURES=IS",
-                    "/INSTANCENAME=$instanceName",
-                    "/ISSVCSTARTUPTYPE=Automatic",
-                    "/IACCEPTSQLSERVERLICENSETERMS"
-                )
-
-                # Run SSIS-only install
-                Write-Output "Running SSIS-only setup: .\setup\setup.exe $($ssisArgs -join ' ')"
-                Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
-
-                Pop-Location
-                Write-Output "SSIS-only install for SQL Server $Version complete"
+            } catch {
+                Write-Output "Error detecting SQL Server instance, defaulting to MSSQLSERVER"
             }
+
+            # Download and extract media (reuses $exeUri and $boxUri from main logic)
+            if (-not (Test-Path C:\temp)) { mkdir C:\temp }
+            Push-Location C:\temp
+            $ProgressPreference = "SilentlyContinue"
+
+            if ($boxUri -eq "") {
+                # For 2016 & 2017
+                if (-not (Test-Path "downloadsetup.exe")) {
+                    Invoke-WebRequest -Uri $exeUri -OutFile downloadsetup.exe
+                    Start-Process -Wait -FilePath ./downloadsetup.exe -ArgumentList /ACTION:Download, /QUIET, /MEDIAPATH:C:\temp
+                    Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
+                    Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
+                }
+            } else {
+                # For 2019 & 2022
+                if (-not (Test-Path "sqlsetup.exe")) {
+                    Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
+                }
+                if (-not (Test-Path "sqlsetup.box")) {
+                    Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
+                }
+            }
+
+            # Extracts media
+            Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
+
+            # Prepare SSIS add-on install arguments for existing instance
+            $ssisArgs = @(
+                "/Q",
+                "/ACTION=Install",
+                "/FEATURES=IS",
+                "/INSTANCENAME=$instanceName",
+                "/ISSVCSTARTUPTYPE=Automatic",
+                "/IACCEPTSQLSERVERLICENSETERMS"
+            )
+
+            # Run SSIS add-on install
+            Write-Output ("Running SSIS add-on setup for instance {0}: .\setup\setup.exe {1}" -f $instanceName, ($ssisArgs -join ' '))
+            Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
+
+            Pop-Location
+            Write-Output "SSIS add-on install for SQL Server instance $instanceName complete"
         }
 
         Pop-Location
