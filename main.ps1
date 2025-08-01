@@ -184,8 +184,9 @@ if ("sqlengine" -in $Install) {
         if ("ssis" -in $Install) {
             Write-Output "Creating SSISDB catalog with admin password"
             Start-Sleep -Seconds 10 # Wait for SQL Server to be fully up
-            $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
             try {
+                sqlcmd -S localhost -q "EXEC msdb.dbo.sp_ssis_startup" -C
+                $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
                 sqlcmd -S localhost -q "$createCatalogScript" -C
             } catch {
                 Write-Warning "SSISDB catalog creation failed or already exists"
