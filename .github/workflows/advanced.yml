@@ -27,7 +27,7 @@ jobs:
       - name: Install sqlengine with full-text search
         uses: ./
         with:
-          install: sqlengine,fulltext
+          install: sqlengine,fulltext,ssis
           sa-password: c0MplicatedP@ssword
           show-log: true
           collation: Latin1_General_BIN
