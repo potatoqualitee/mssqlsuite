@@ -245,10 +245,9 @@ if ("sqlengine" -in $Install) {
             Write-Output ("Running SSIS add-on setup for instance {0}: .\setup\setup.exe {1}" -f $instanceName, ($ssisArgs -join ' '))
             Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
 
-            Start-Sleep -Seconds 10 # Wait for SSIS service to start
-            sqlcmd -S localhost -q "EXEC msdb.dbo.sp_ssis_startup" -C
-            $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
-            sqlcmd -S localhost -q "$createCatalogScript" -C
+            Start-Sleep -Seconds 5 # Wait for SSIS service to start
+            sqlcmd -S localhost -Q "IF DB_ID('SSISDB') IS NULL CREATE CATALOG SSISDB AUTHORIZATION dbo ENCRYPTION BY PASSWORD = '$SaPassword';"
+
             Pop-Location
             Write-Output "SSIS add-on install for SQL Server instance $instanceName complete"
         }
