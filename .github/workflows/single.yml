@@ -11,7 +11,7 @@ jobs:
       - name: Run the action
         uses: potatoqualitee/mssqlsuite@v1.11
         with:
-          install: sqlengine, sqlclient, sqlpackage, localdb
+          install: sqlengine, sqlclient, sqlpackage, localdb, ssis
 
       - name: Run sqlclient
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
@@ -31,7 +31,7 @@ jobs:
       - name: Run the action with custom admin
         uses: potatoqualitee/mssqlsuite@v1.11
         with:
-          install: sqlengine, sqlclient
+          install: sqlengine, sqlclient, ssis
           admin-username: dbadmin
           sa-password: TestP@ssword123
 

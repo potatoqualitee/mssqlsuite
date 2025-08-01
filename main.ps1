@@ -183,6 +183,7 @@ if ("sqlengine" -in $Install) {
         # After SQL Server and SSIS install, create SSISDB catalog if requested
         if ("ssis" -in $Install) {
             Write-Output "Creating SSISDB catalog with admin password"
+            Start-Sleep -Seconds 10 # Wait for SQL Server to be fully up
             $createCatalogScript = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'SSISDB') EXEC catalog.create_catalog N'$SaPassword';"
             try {
                 sqlcmd -S localhost -q "$createCatalogScript" -C
