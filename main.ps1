@@ -308,34 +308,29 @@ if ("sqlengine" -in $Install) {
                 Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Create Server object directly (avoids connection type mismatch in SMO v16+)
-                $server = New-Object Microsoft.SqlServer.Management.Smo.Server "localhost"
-                $server.ConnectionContext.LoginSecure = $false
-                $server.ConnectionContext.Login = $AdminUsername
-                $server.ConnectionContext.Password = $SaPassword
-                $server.ConnectionContext.TrustServerCertificate = $true
-                $server.ConnectionContext.EncryptConnection = $false
+                # Create ServerConnection object for SMO v16+
+                $serverConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection("localhost", $AdminUsername, $SaPassword)
+                $serverConn.TrustServerCertificate = $true
+                $serverConn.EncryptConnection = $false
 
-                # Create Integration Services object (parameterless constructor for SMO v16+)
-                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices
+                # Create Server object using ServerConnection
+                $server = New-Object Microsoft.SqlServer.Management.Smo.Server($serverConn)
 
-                # Set the server connection
-                $ssis.Connection = $server.ConnectionContext
+                # Create Integration Services object - correct SMO v16 constructor
+                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices($server)
 
-                if ($ssis.Catalogs.Count -gt 0) {
+                if ($ssis.Catalogs["SSISDB"]) {
                     Write-Output "SSIS Catalog already exists"
                 } else {
-                    # Create SSISDB catalog
+                    # Create SSISDB catalog using static method for SMO v16+
                     $catalogName = "SSISDB"
-                    $plainPassword = [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($securePassword))
-                    $ssisdb = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog ($ssis, $catalogName, $plainPassword)
-                    $ssisdb.Create()
+                    [Microsoft.SqlServer.Management.IntegrationServices.Catalog]::CreateCatalog($server, $securePassword, $catalogName, $false)
 
                     Write-Output "SSISDB catalog created successfully using SMO"
                 }
 
                 # Close connection
-                $server.ConnectionContext.Disconnect()
+                $serverConn.Disconnect()
             }
             catch {
 
