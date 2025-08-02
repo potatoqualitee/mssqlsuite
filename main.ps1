@@ -291,10 +291,15 @@ if ("sqlengine" -in $Install) {
             Import-Module dbatools -Force
             $null = Set-DbatoolsInsecureConnection
 
-            # Create SSISDB catalog using raw SMO
+            # Create SSISDB catalog using SMO
             Write-Output "Creating SSISDB catalog using SMO..."
 
             try {
+                # Test connection with dbatools first
+                Write-Output "Testing connection with dbatools..."
+                $dbaInstance = Connect-DbaInstance -SqlInstance localhost -SqlCredential (New-Object System.Management.Automation.PSCredential($AdminUsername, (ConvertTo-SecureString $SaPassword -AsPlainText -Force))) -TrustServerCertificate
+                Write-Output "dbatools connection successful"
+
                 # Set catalog password - use provided SaPassword or default
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
                 $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
@@ -303,8 +308,8 @@ if ("sqlengine" -in $Install) {
                 Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Create SQL Server connection using SqlConnection approach
-                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$SaPassword;Connect Timeout=30;Application Name=PowerShell"
+                # Create SQL Server connection with encryption settings
+                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$SaPassword;Connect Timeout=30;Application Name=PowerShell;TrustServerCertificate=true;Encrypt=false"
                 $sqlconnection = New-Object System.Data.SqlClient.SqlConnection $legacyconnstring
                 $null = $sqlconnection.Open()
 
