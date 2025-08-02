@@ -282,7 +282,7 @@ if ("sqlengine" -in $Install) {
                 # Detect SQL Server version for choosing assembly registration method
                 Write-Output "Detecting SQL Server version..."
                 $sqlVersion = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT SERVERPROPERTY('ProductMajorVersion')" -h -1 -C
-                $majorVersion = [int]$sqlVersion.Trim()
+                $majorVersion = [int]($sqlVersion | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1).Trim()
                 Write-Output "Detected SQL Server major version: $majorVersion"
 
                 # Find Microsoft.SqlServer.IntegrationServices.Server.dll dynamically
