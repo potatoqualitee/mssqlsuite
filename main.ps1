@@ -277,11 +277,33 @@ if ("sqlengine" -in $Install) {
             try {
                 # Method 1: Try using PowerShell with Integration Services assembly
                 $assemblyLoaded = $false
+
+                # Map SQL Server versions to assembly versions
+                $assemblyVersion = switch ($versionMajor) {
+                    13 { "13.0.0.0" }  # SQL Server 2016
+                    14 { "14.0.0.0" }  # SQL Server 2017
+                    15 { "15.0.0.0" }  # SQL Server 2019
+                    16 { "16.0.0.0" }  # SQL Server 2022
+                    default { "16.0.0.0" }  # Default to latest
+                }
+
+                Write-Output "Attempting to load Integration Services assemblies for version $assemblyVersion..."
+
                 try {
-                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
+                    # Try version-specific assembly first
+                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices, Version=$assemblyVersion, Culture=neutral, PublicKeyToken=89845dcd8080cc91") | Out-Null
                     $assemblyLoaded = $true
+                    Write-Output "✓ Loaded version-specific Integration Services assembly ($assemblyVersion)"
                 } catch {
-                    Write-Output "Integration Services assembly not available, using SQL method"
+                    Write-Output "Version-specific assembly failed, trying generic load..."
+                    try {
+                        # Fallback to generic load without version
+                        [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
+                        $assemblyLoaded = $true
+                        Write-Output "✓ Loaded Integration Services assembly (generic)"
+                    } catch {
+                        Write-Output "Integration Services assembly not available: $($_.Exception.Message)"
+                    }
                 }
 
                 if ($assemblyLoaded) {
@@ -291,6 +313,7 @@ if ("sqlengine" -in $Install) {
                         $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlConnection
 
                         if ($integrationServices.Catalogs.Count -eq 0) {
+                            Write-Output "Creating SSISDB catalog using Integration Services API..."
                             $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $SaPassword)
                             $catalog.Create()
                             Write-Output "SSISDB catalog created successfully using PowerShell method"
@@ -321,7 +344,7 @@ if ("sqlengine" -in $Install) {
 
                         # Get the SQL Server data directory dynamically
                         $dataDir = sqlcmd -S localhost -Q "SELECT SERVERPROPERTY('InstanceDefaultDataPath')" -h -1 -C
-                        if (-not $dataDir -or $dataDir.Trim() -eq "") {
+                        if (-not $dataDir -or $dataDir.Trim() -eq "" -or $dataDir.Trim() -eq "NULL") {
                             # Fallback to standard path based on version
                             $dataDir = "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\DATA\"
                         }
@@ -342,14 +365,23 @@ LOG ON (NAME = 'SSISDB_Log', FILENAME = '$dataDir\SSISDB.ldf')
             $catalogCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
             if ($catalogCheck -match "SSISDB") {
                 Write-Output "✓ SSISDB catalog verification successful"
+
+                # Additional verification - check if we can access catalog views
+                try {
+                    $catalogFunctional = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
+                    if ($catalogFunctional -eq "1") {
+                        Write-Output "✓ SSISDB catalog schema is functional"
+                    } else {
+                        Write-Output "⚠ SSISDB database exists but catalog schema may be incomplete"
+                    }
+                } catch {
+                    Write-Output "⚠ SSISDB database exists but catalog verification failed"
+                }
             } else {
                 Write-Warning "✗ SSISDB catalog verification failed"
                 Write-Output "Available databases:"
                 sqlcmd -S localhost -Q "SELECT name FROM sys.databases" -C
             }
-
-            Pop-Location
-            Write-Output "SSIS add-on install for SQL Server instance $instanceName complete"
         }
 
         Pop-Location
