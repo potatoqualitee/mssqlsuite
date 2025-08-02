@@ -291,40 +291,42 @@ if ("sqlengine" -in $Install) {
             Import-Module dbatools -Force
             $null = Set-DbatoolsInsecureConnection
 
-            # Create SSISDB catalog using dbatools
-            Write-Output "Creating SSISDB catalog using dbatools..."
+            # Create SSISDB catalog using raw SMO
+            Write-Output "Creating SSISDB catalog using SMO..."
 
             try {
                 # Set catalog password - use provided SaPassword or default
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
                 $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
 
+                # Load SMO assemblies
+                Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Build connection parameters
-                $connectionParams = @{
-                    SqlInstance = "localhost"
-                    SecurePassword = $securePassword
-                    SqlCredential = $null
+                # Create SQL Server connection
+                $server = New-Object Microsoft.SqlServer.Management.Smo.Server "localhost"
+                if ($SaPassword) {
+                    $server.ConnectionContext.LoginSecure = $false
+                    $server.ConnectionContext.Login = $AdminUsername
+                    $server.ConnectionContext.Password = $catalogPassword
                 }
 
-                if (-not $SaPassword) {
-                    Write-Warning "No SA password provided, using default catalog password"
-                } else {
-                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
-                    $connectionParams.SqlCredential = $sqlCredential
-                }
+                # Create Integration Services object
+                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $server
 
-                # Create the SSISDB catalog
-                $result = New-DbaSsisCatalog @connectionParams
-
-                if ($result) {
-                    Write-Output "SSISDB catalog created successfully using dbatools"
+                if ($ssis.Catalogs.Count -gt 0) {
+                    Write-Output "SSIS Catalog already exists"
                 } else {
-                    throw "New-DbaSsisCatalog returned null/empty result"
+                    # Create SSISDB catalog
+                    $catalogName = "SSISDB"
+                    $plainPassword = [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($securePassword))
+                    $ssisdb = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog ($ssis, $catalogName, $plainPassword)
+                    $ssisdb.Create()
+
+                    Write-Output "SSISDB catalog created successfully using SMO"
                 }
             }
             catch {
-                Write-Error "Failed to create SSISDB catalog with dbatools: $_"
+                Write-Error "Failed to create SSISDB catalog with SMO: $_"
                 throw
             }
 
