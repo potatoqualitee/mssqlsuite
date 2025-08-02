@@ -270,94 +270,64 @@ if ("sqlengine" -in $Install) {
 
             # Create SSISDB catalog using SMO
             Write-Output "Creating SSISDB catalog using SMO..."
-            try {
-                # Load SMO functions
-                function Install-DbaTools {
-                    Write-Output "Installing dbatools module for SSISDB catalog creation..."
-
-                    try {
-                        # Set PSGallery as trusted to avoid prompts
-                        if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
-                            Write-Output "Setting PSGallery as trusted..."
-                            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-                        }
-
-                        # Install specific version of dbatools
-                        $requiredVersion = "2.1.32"
-                        Write-Output "Installing dbatools version $requiredVersion..."
-
-                        # Check if the correct version is already installed
-                        $installedModule = Get-Module -ListAvailable -Name dbatools | Where-Object { $_.Version -eq $requiredVersion }
-
-                        if ($installedModule) {
-                            Write-Output "dbatools version $requiredVersion is already installed"
-                        } else {
-                            Install-Module -Name dbatools -RequiredVersion $requiredVersion -Force -Scope CurrentUser -AllowClobber
-                            Write-Output "Successfully installed dbatools version $requiredVersion"
-                        }
-
-                        # Import the module
-                        Write-Output "Importing dbatools module..."
-                        Import-Module dbatools -Force
-
-                        # Verify the module is loaded
-                        $loadedModule = Get-Module -Name dbatools
-                        if ($loadedModule) {
-                            Write-Output "dbatools module loaded successfully (Version: $($loadedModule.Version))"
-                            return $true
-                        } else {
-                            throw "Failed to load dbatools module"
-                        }
-                    }
-                    catch {
-                        Write-Error "Failed to install/import dbatools: $_"
-                        return $false
-                    }
-                }
-
-                # Create SSISDB catalog using dbatools
-                Write-Output "Creating SSISDB catalog using dbatools..."
-
-                try {
-                    # Set catalog password - use provided SaPassword or default
-                    $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
-                    if (-not $SaPassword) {
-                        Write-Warning "No SA password provided, using default catalog password"
-                    }
-
-                    # Build connection parameters
-                    $connectionParams = @{
-                        SqlInstance = "localhost"
-                        CatalogPassword = $catalogPassword
-                        EnableClr = $true
-                        Force = $true
-                    }
-
-                    # Add SQL credentials if SA password is provided
-                    if ($SaPassword) {
-                        $securePassword = ConvertTo-SecureString $SaPassword -AsPlainText -Force
-                        $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
-                        $connectionParams.SqlCredential = $sqlCredential
-                    }
-
-                    # Create the SSISDB catalog
-                    $result = New-DbaDbSsisCatalog @connectionParams
-
-                    if ($result) {
-                        Write-Output "SSISDB catalog created successfully using dbatools"
-                    } else {
-                        throw "New-DbaDbSsisCatalog returned null/empty result"
-                    }
-                }
-                catch {
-                    Write-Error "Failed to create SSISDB catalog with dbatools: $_"
-                    throw
-                }
-
-                Write-Output "SSISDB catalog creation completed successfully."
-            } catch {
-                Write-Error "Failed to create SSISDB catalog: $_"
+            # Set PSGallery as trusted to avoid prompts
+            if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
+                Write-Output "Setting PSGallery as trusted..."
+                Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
             }
+
+            # Install specific version of dbatools
+            $requiredVersion = "2.1.32"
+            Write-Output "Installing dbatools version $requiredVersion..."
+
+            Install-Module -Name dbatools -RequiredVersion $requiredVersion -Force -Scope CurrentUser -AllowClobber
+
+            # Import the module
+            Write-Output "Importing dbatools module..."
+            Import-Module dbatools -Force
+
+            # Create SSISDB catalog using dbatools
+            Write-Output "Creating SSISDB catalog using dbatools..."
+
+            try {
+                # Set catalog password - use provided SaPassword or default
+                $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
+                $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
+
+                if (-not $SaPassword) {
+                    Write-Warning "No SA password provided, using default catalog password"
+                } else {
+                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
+                    $connectionParams.SqlCredential = $sqlCredential
+                }
+
+                # Build connection parameters
+                $connectionParams = @{
+                    SqlInstance = "localhost"
+                    SecurePassword = $catalogPassword
+                }
+
+                if ($sqlcredential) {
+                    $connectionParams.SqlCredential = $sqlCredential
+                }
+
+                # Create the SSISDB catalog
+                $result = New-DbaDbSsisCatalog @connectionParams
+
+                if ($result) {
+                    Write-Output "SSISDB catalog created successfully using dbatools"
+                } else {
+                    throw "New-DbaDbSsisCatalog returned null/empty result"
+                }
+            }
+            catch {
+                Write-Error "Failed to create SSISDB catalog with dbatools: $_"
+                throw
+            }
+
+            Write-Output "SSISDB catalog creation completed successfully."
+        } catch {
+            Write-Error "Failed to create SSISDB catalog: $_"
         }
     }
 }
