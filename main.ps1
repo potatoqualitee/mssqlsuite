@@ -305,7 +305,7 @@ if ("sqlengine" -in $Install) {
             WITH REPLACE,
             MOVE N'data' TO N'C:\temp\SSISDB.mdf',
             MOVE N'log' TO N'C:\temp\SSISDB.ldf'
-            "@
+"@
 
             sqlcmd -S localhost -Q "$restoreCmd" -C
 
