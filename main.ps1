@@ -273,52 +273,75 @@ if ("sqlengine" -in $Install) {
             try {
                 # Load SMO functions
                 function Load-SSISAssemblies {
+                    Write-Output "Loading SMO assemblies..."
+
+                    # Strategy 1: Try Add-Type with assembly names (most reliable for CI/CD)
                     try {
-                        # Try to load from GAC first (preferred method)
-                        Write-Output "Loading SMO assemblies from GAC..."
+                        Write-Output "Trying Add-Type with assembly names..."
+                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc" -ErrorAction Stop
+                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Common" -ErrorAction Stop
+                        Add-Type -AssemblyName "Microsoft.SqlServer.Smo" -ErrorAction Stop
+                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices" -ErrorAction Stop
 
-                        # Load core SMO assemblies
-                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Sdk.Sfc") | Out-Null
-                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Common") | Out-Null
-                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
-                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
-
-                        Write-Output "Successfully loaded SSIS SMO assemblies from GAC"
+                        # Test if the type is available
+                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
+                        Write-Output "Assembly loading verified - ServerConnection type found"
                         return $true
                     }
                     catch {
-                        Write-Warning "Failed to load from GAC, trying alternative methods: $_"
-
-                        try {
-                            # Fallback: try common installation paths using LoadFrom
-                            $fallbackPaths = @(
-                                "C:\Program Files (x86)\Microsoft SQL Server\160\SDK\Assemblies",
-                                "C:\Program Files (x86)\Microsoft SQL Server\150\SDK\Assemblies",
-                                "C:\Program Files (x86)\Microsoft SQL Server\140\SDK\Assemblies",
-                                "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies"
-                            )
-
-                            foreach ($basePath in $fallbackPaths) {
-                                if (Test-Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") {
-                                    Write-Warning "Using fallback assembly path: $basePath"
-
-                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll") | Out-Null
-                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.Common.dll") | Out-Null
-                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Smo.dll") | Out-Null
-                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") | Out-Null
-
-                                    Write-Output "Successfully loaded SSIS SMO assemblies from: $basePath"
-                                    return $true
-                                }
-                            }
-
-                            throw "No SQL Server SMO assemblies found. Please ensure SQL Server client tools are installed."
-                        }
-                        catch {
-                            Write-Error "Failed to load SSIS SMO assemblies: $_"
-                            return $false
-                        }
+                        Write-Warning "Add-Type assembly loading failed: $_"
                     }
+
+                    # Strategy 2: Try LoadWithPartialName (GAC)
+                    try {
+                        Write-Output "Trying GAC loading with LoadWithPartialName..."
+                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Sdk.Sfc")
+                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Common")
+                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
+                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices")
+
+                        # Test if the type is available
+                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
+                        Write-Output "GAC loading successful and verified"
+                        return $true
+                    }
+                    catch {
+                        Write-Warning "GAC loading failed: $_"
+                    }
+
+                    # Strategy 3: Try file paths with Add-Type
+                    try {
+                        Write-Output "Trying file path loading with Add-Type..."
+                        $fallbackPaths = @(
+                            "C:\Program Files (x86)\Microsoft SQL Server\160\SDK\Assemblies",
+                            "C:\Program Files (x86)\Microsoft SQL Server\150\SDK\Assemblies",
+                            "C:\Program Files (x86)\Microsoft SQL Server\140\SDK\Assemblies",
+                            "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies"
+                        )
+
+                        foreach ($basePath in $fallbackPaths) {
+                            if (Test-Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") {
+                                Write-Output "Using assembly path: $basePath"
+
+                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
+                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
+                                Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
+                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
+
+                                # Test if the type is available
+                                $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
+                                Write-Output "File path loading successful and verified from: $basePath"
+                                return $true
+                            }
+                        }
+                        throw "No assembly paths found"
+                    }
+                    catch {
+                        Write-Warning "File path loading failed: $_"
+                    }
+
+                    Write-Error "All assembly loading strategies failed. SMO assemblies not available."
+                    return $false
                 }
 
                 function Get-SqlServerVersion {
