@@ -309,19 +309,48 @@ if ("sqlengine" -in $Install) {
                 }
                 Write-Output "Found Integration Services DLL at: $integrationServicesDll"
 
-                # Create SSISDB database
-                Write-Output "Creating SSISDB database..."
-                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "CREATE DATABASE [SSISDB]" -C
+                # Find SSISDBBackup.bak dynamically
+                Write-Output "Finding SSISDB backup file..."
+                $ssisdbBackup = $null
+                foreach ($basePath in $sqlServerPaths) {
+                    if (Test-Path $basePath) {
+                        $foundBackups = Get-ChildItem -Path $basePath -Recurse -Filter "SSISDBBackup.bak" -ErrorAction SilentlyContinue
+                        if ($foundBackups) {
+                            # Prefer the backup file that matches the current version
+                            $versionSpecificBackup = $foundBackups | Where-Object { $_.FullName -like "*$versionMajor*" } | Select-Object -First 1
+                            if ($versionSpecificBackup) {
+                                $ssisdbBackup = $versionSpecificBackup.FullName
+                            } else {
+                                # Fall back to any backup file found
+                                $ssisdbBackup = ($foundBackups | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+                            }
+                            break
+                        }
+                    }
+                }
 
-                # Create database master key
-                Write-Output "Creating database master key..."
-                $masterKeySql = @"
-USE [SSISDB];
-CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$catalogPassword';
+                if (-not $ssisdbBackup) {
+                    throw "Could not find SSISDBBackup.bak file. Please ensure the backup file is available in the SQL Server installation directories."
+                }
+                Write-Output "Found SSISDB backup at: $ssisdbBackup"
+
+                # Restore SSISDB from backup
+                Write-Output "Restoring SSISDB from backup..."
+                $restoreSql = @"
+RESTORE DATABASE [SSISDB] FROM DISK = N'$ssisdbBackup'
+WITH FILE = 1, NOUNLOAD, REPLACE, STATS = 5;
 "@
-                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$masterKeySql" -C
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$restoreSql" -C
 
-                # Register assembly based on SQL Server version
+                # Update database master key password to match catalog password
+                Write-Output "Updating database master key password..."
+                $updateMasterKeySql = @"
+USE [SSISDB];
+ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = '$catalogPassword';
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$updateMasterKeySql" -C
+
+                # Register assembly based on SQL Server version (needed for SSISDB functionality)
                 if ($majorVersion -ge 14) {
                     # SQL Server 2017+ - Use trusted assemblies
                     Write-Output "Registering assembly using trusted assemblies method (SQL Server 2017+)..."
@@ -347,21 +376,20 @@ GRANT UNSAFE ASSEMBLY TO ##MS_SQLEnableSystemAssemblyLoadingUser##;
                     sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$asymmetricKeySql" -C
                 }
 
-                # Create the SSIS catalog using T-SQL
-                Write-Output "Creating SSIS catalog..."
-                $createCatalogSql = @"
-USE [SSISDB];
-EXEC [catalog].[create_catalog] @password = N'$catalogPassword';
-"@
-                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$createCatalogSql" -C
-
                 # Create startup procedure
                 Write-Output "Creating startup procedure..."
-                $startupProcSql = @"
+
+                # First batch: Drop existing procedure if it exists
+                $dropProcSql = @"
 USE master;
 IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ssis_startup')
     DROP PROCEDURE [dbo].[sp_ssis_startup];
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$dropProcSql" -C
 
+                # Second batch: Create the procedure
+                $createProcSql = @"
+USE master;
 CREATE PROCEDURE [dbo].[sp_ssis_startup]
 AS
 SET NOCOUNT ON
@@ -372,10 +400,15 @@ SET NOCOUNT ON
     DECLARE @script nvarchar(500)
     SET @script = N'EXEC [SSISDB].[catalog].[startup]'
     EXECUTE sp_executesql @script;
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$createProcSql" -C
 
+                # Third batch: Enable the startup procedure
+                $enableStartupSql = @"
+USE master;
 EXEC sp_procoption N'sp_ssis_startup', 'startup', 'on';
 "@
-                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$startupProcSql" -C
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$enableStartupSql" -C
 
                 # Setup maintenance job for SSIS catalog cleanup
                 Write-Output "Setting up SSIS maintenance job..."
