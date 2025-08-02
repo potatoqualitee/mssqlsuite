@@ -268,34 +268,33 @@ if ("sqlengine" -in $Install) {
                 }
             }
 
-           # Force restore SSISDB - no checking, no fallbacks, just restore
+           # Force restore SSISDB - find the backup file properly
             Write-Output "Force restoring SSISDB catalog from backup..."
 
             # Always drop existing SSISDB
             Write-Output "Dropping any existing SSISDB database..."
             sqlcmd -S localhost -Q "IF EXISTS(SELECT * FROM sys.databases WHERE name = 'SSISDB') DROP DATABASE [SSISDB];" -C
 
-            # Find the backup file - it MUST exist
-            $backupPath = $null
-            $possiblePaths = @(
-                "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\DTS\Binn\SSISDBBackup.bak",
-                "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\Shared\SSISDBBackup.bak",
-                "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\Backup\SSISDBBackup.bak"
-            )
+            # Find ALL .bak files and show them
+            Write-Warning "Searching for all .bak files..."
+            Get-ChildItem -Path "C:\Program Files\Microsoft SQL Server\" -Recurse -Filter "*.bak" -ErrorAction SilentlyContinue | ForEach-Object { Write-Warning "Found: $($_.FullName)" }
 
-            foreach ($path in $possiblePaths) {
-                if (Test-Path $path) {
-                    $backupPath = $path
-                    Write-Output "Found SSISDBBackup.bak at: $path"
-                    break
-                }
+            # Find the SSISDB backup file - search properly
+            Write-Output "Searching for SSISDBBackup.bak..."
+            $backupPath = Get-ChildItem -Path "C:\Program Files\Microsoft SQL Server\" -Recurse -Filter "*SSISDB*.bak" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+
+            if (-not $backupPath) {
+                Write-Output "No SSISDB backup found in SQL Server folder, searching entire C: drive..."
+                $backupPath = Get-ChildItem -Path "C:\" -Recurse -Filter "*SSISDB*.bak" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
             }
 
             if (-not $backupPath) {
-                Write-Error "SSISDBBackup.bak not found. SSIS installation is incomplete."
+                Write-Error "SSISDBBackup.bak not found anywhere on the system."
                 Pop-Location
                 return
             }
+
+            Write-Output "Found SSISDBBackup.bak at: $backupPath"
 
             # RESTORE - period, no alternatives
             Write-Output "Restoring SSISDB from backup to C:\temp..."
