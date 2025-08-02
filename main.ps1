@@ -310,12 +310,12 @@ if ("sqlengine" -in $Install) {
                 }
 
                 # Create the SSISDB catalog
-                $result = New-DbaDbSsisCatalog @connectionParams
+                $result = New-DbaSsisCatalog @connectionParams
 
                 if ($result) {
                     Write-Output "SSISDB catalog created successfully using dbatools"
                 } else {
-                    throw "New-DbaDbSsisCatalog returned null/empty result"
+                    throw "New-DbaSsisCatalog returned null/empty result"
                 }
             }
             catch {
