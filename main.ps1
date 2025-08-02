@@ -404,13 +404,21 @@ IF NOT EXISTS(SELECT * FROM sys.trusted_assemblies WHERE hash = @isServerHashCod
                 } else {
                     # SQL Server 2016 - Use asymmetric key
                     Write-Output "Registering assembly using asymmetric key method (SQL Server 2016)..."
-                    $asymmetricKeySql = @"
+
+                    # First, create the asymmetric key in SSISDB database
+                    $createKeySql = @"
 USE [SSISDB];
 CREATE ASYMMETRIC KEY MS_SQLEnableSystemAssemblyLoadingKey FROM EXECUTABLE FILE = '$integrationServicesDll';
-CREATE LOGIN ##MS_SQLEnableSystemAssemblyLoadingUser## FROM ASYMMETRIC KEY MS_SQLEnableSystemAssemblyLoadingKey;
+"@
+                    sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$createKeySql" -C
+
+                    # Then, create login and grant permissions in master database context
+                    $grantPermissionsSql = @"
+USE [master];
+CREATE LOGIN ##MS_SQLEnableSystemAssemblyLoadingUser## FROM ASYMMETRIC KEY [SSISDB].[dbo].[MS_SQLEnableSystemAssemblyLoadingKey];
 GRANT UNSAFE ASSEMBLY TO ##MS_SQLEnableSystemAssemblyLoadingUser##;
 "@
-                    sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$asymmetricKeySql" -C
+                    sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$grantPermissionsSql" -C
                 }
 
                 # Create startup procedure
