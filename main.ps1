@@ -298,7 +298,7 @@ if ("sqlengine" -in $Install) {
                 # Build connection parameters
                 $connectionParams = @{
                     SqlInstance = "localhost"
-                    SecurePassword = $catalogPassword
+                    SecurePassword = $securePassword
                     SqlCredential = $null
                 }
 
