@@ -305,10 +305,7 @@ if ("sqlengine" -in $Install) {
                 $connectionParams = @{
                     SqlInstance = "localhost"
                     SecurePassword = $catalogPassword
-                }
-
-                if ($sqlcredential) {
-                    $connectionParams.SqlCredential = $sqlCredential
+                    SqlCredential = $sqlcredential
                 }
 
                 # Create the SSISDB catalog
