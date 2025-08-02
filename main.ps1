@@ -306,188 +306,134 @@ if ("sqlengine" -in $Install) {
 
                 Write-Output "Found SSISDBBackup.bak at: $backupPath"
 
-                # Get the SQL Server data directory dynamically
-                $dataDir = sqlcmd -S localhost -Q "SELECT SERVERPROPERTY('InstanceDefaultDataPath')" -h -1 -C
-                if (-not $dataDir -or $dataDir.Trim() -eq "" -or $dataDir.Trim() -eq "NULL") {
-                    # Fallback to standard path based on version
-                    $dataDir = "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\DATA\"
-                }
-                $dataDir = $dataDir.Trim()
-                Write-Output "Using data directory: $dataDir"
-
-                # Restore SSISDB from backup
-                $restoreSql = @"
-RESTORE DATABASE [SSISDB]
-FROM DISK = N'$backupPath'
-WITH FILE = 1,
-MOVE N'data' TO N'$dataDir\SSISDB.mdf',
-MOVE N'log' TO N'$dataDir\SSISDB.ldf',
-NOUNLOAD, REPLACE, STATS = 5
-"@
+                # Simple restore without specifying paths - let SQL Server figure it out
+                $simpleRestore = "RESTORE DATABASE [SSISDB] FROM DISK = N'$backupPath' WITH REPLACE"
 
                 try {
                     Write-Output "Restoring SSISDB database from backup..."
-                    sqlcmd -S localhost -Q "$restoreSql" -C
+                    sqlcmd -S localhost -Q "$simpleRestore" -C
                     Write-Output "✓ SSISDB database restored successfully"
                 } catch {
-                    Write-Warning "Backup restoration failed: $_"
-                    Write-Output "Trying simplified restore command..."
+                    Write-Warning "Simple restore failed: $_"
 
-                    # Try simplified restore
-                    $simplifiedRestore = "RESTORE DATABASE [SSISDB] FROM DISK = N'$backupPath' WITH REPLACE"
+                    # If simple restore fails, try getting the logical file names first
+                    Write-Output "Getting backup file information..."
                     try {
-                        sqlcmd -S localhost -Q "$simplifiedRestore" -C
-                        Write-Output "✓ SSISDB database restored with simplified command"
+                        $fileListSql = "RESTORE FILELISTONLY FROM DISK = N'$backupPath'"
+                        $fileList = sqlcmd -S localhost -Q "$fileListSql" -C
+                        Write-Output "Backup file contents:"
+                        Write-Output $fileList
+
+                        # Get data directory without the extra text
+                        $dataDirRaw = sqlcmd -S localhost -Q "SELECT SERVERPROPERTY('InstanceDefaultDataPath')" -C
+                        $dataDir = ($dataDirRaw -split "`n" | Where-Object { $_ -match "^[C-Z]:\\" }) | Select-Object -First 1
+                        if (-not $dataDir) {
+                            $dataDir = "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\DATA\"
+                        }
+                        $dataDir = $dataDir.Trim()
+                        Write-Output "Using data directory: $dataDir"
+
+                        # Try restore with explicit file moves using standard logical names
+                        $restoreWithMove = @"
+RESTORE DATABASE [SSISDB]
+FROM DISK = N'$backupPath'
+WITH REPLACE,
+MOVE N'data' TO N'$dataDir\SSISDB.mdf',
+MOVE N'log' TO N'$dataDir\SSISDB.ldf'
+"@
+
+                        sqlcmd -S localhost -Q "$restoreWithMove" -C
+                        Write-Output "✓ SSISDB database restored with explicit file moves"
+
                     } catch {
-                        Write-Error "Both restore methods failed: $_"
+                        Write-Error "All restore methods failed: $_"
                         continue
                     }
                 }
-
-                # Configure the restored database
-                $configureSql = @"
--- Set database to trustworthy for CLR assemblies
-ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;
-
--- Configure recovery model
-ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;
-
--- Ensure database is accessible
-ALTER DATABASE [SSISDB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-ALTER DATABASE [SSISDB] SET MULTI_USER;
-"@
-
-                try {
-                    sqlcmd -S localhost -Q "$configureSql" -C
-                    Write-Output "✓ SSISDB database configured"
-                } catch {
-                    Write-Warning "Database configuration had issues: $_"
-                }
             }
 
-            # Now try to complete catalog initialization using PowerShell
-            Write-Output "Completing SSISDB catalog initialization..."
+            # Configure the database if it was restored
+            Write-Output "Configuring SSISDB database..."
+            try {
+                $configureSql = @"
+ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;
+ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;
+"@
+                sqlcmd -S localhost -Q "$configureSql" -C
+                Write-Output "✓ SSISDB database configured"
+            } catch {
+                Write-Output "Database configuration completed with warnings"
+            }
+
+            # Try catalog initialization - the database should now have all the procedures
+            Write-Output "Initializing SSISDB catalog..."
 
             try {
-                # Map SQL Server versions to assembly versions
-                $assemblyVersion = switch ($versionMajor) {
-                    13 { "13.0.0.0" }  # SQL Server 2016
-                    14 { "14.0.0.0" }  # SQL Server 2017
-                    15 { "15.0.0.0" }  # SQL Server 2019
-                    16 { "16.0.0.0" }  # SQL Server 2022
-                    default { "16.0.0.0" }  # Default to latest
-                }
-
-                Write-Output "Loading Integration Services assemblies for version $assemblyVersion..."
-
-                $assemblyLoaded = $false
-                try {
-                    # Try version-specific assembly first
-                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices, Version=$assemblyVersion, Culture=neutral, PublicKeyToken=89845dcd8080cc91") | Out-Null
-                    $assemblyLoaded = $true
-                    Write-Output "✓ Loaded version-specific Integration Services assembly ($assemblyVersion)"
-                } catch {
-                    Write-Output "Version-specific assembly failed, trying generic load..."
-                    try {
-                        # Fallback to generic load without version
-                        [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
-                        $assemblyLoaded = $true
-                        Write-Output "✓ Loaded Integration Services assembly (generic)"
-                    } catch {
-                        Write-Output "Integration Services assembly not available: $($_.Exception.Message)"
-                    }
-                }
-
-                if ($assemblyLoaded) {
-                    try {
-                        $sqlConnectionString = "Data Source=localhost;Initial Catalog=master;Integrated Security=True;"
-                        $sqlConnection = New-Object System.Data.SqlClient.SqlConnection $sqlConnectionString
-                        $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlConnection
-
-                        if ($integrationServices.Catalogs.Count -eq 0) {
-                            Write-Output "Initializing SSISDB catalog with password..."
-                            $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $SaPassword)
-                            $catalog.Create()
-                            Write-Output "✓ SSISDB catalog initialized successfully using PowerShell method"
-                        } else {
-                            Write-Output "✓ SSISDB catalog already exists and is accessible"
-                        }
-                    } catch {
-                        Write-Output "PowerShell catalog initialization failed: $($_.Exception.Message)"
-                        Write-Output "Catalog database exists, trying direct T-SQL approach..."
-
-                        # Try using the catalog.create_catalog procedure that should now exist
-                        try {
-                            sqlcmd -S localhost -d SSISDB -Q "EXEC catalog.create_catalog @password = N'$SaPassword'" -C
-                            Write-Output "✓ SSISDB catalog initialized using T-SQL method"
-                        } catch {
-                            Write-Output "T-SQL catalog creation also failed, but database is restored"
-                        }
-                    }
-                } else {
-                    Write-Output "Assembly loading failed, trying direct database approach..."
-                    # The database should be functional even without assembly initialization
-                    try {
-                        sqlcmd -S localhost -d SSISDB -Q "EXEC catalog.create_catalog @password = N'$SaPassword'" -C
-                        Write-Output "✓ SSISDB catalog initialized using direct T-SQL"
-                    } catch {
-                        Write-Output "Direct T-SQL approach failed, but database should be functional"
-                    }
-                }
+                # Try using the restored catalog.create_catalog procedure
+                $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
+                sqlcmd -S localhost -Q "$initCatalog" -C
+                Write-Output "✓ SSISDB catalog initialized successfully"
             } catch {
-                Write-Warning "Catalog initialization had issues: $_"
+                Write-Output "T-SQL catalog initialization failed, trying PowerShell method..."
+
+                # Try PowerShell method as fallback
+                try {
+                    # Map SQL Server versions to assembly versions
+                    $assemblyVersion = switch ($versionMajor) {
+                        13 { "13.0.0.0" }  # SQL Server 2016
+                        14 { "14.0.0.0" }  # SQL Server 2017
+                        15 { "15.0.0.0" }  # SQL Server 2019
+                        16 { "16.0.0.0" }  # SQL Server 2022
+                        default { "16.0.0.0" }  # Default to latest
+                    }
+
+                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
+
+                    $sqlConnectionString = "Data Source=localhost;Initial Catalog=master;Integrated Security=True;"
+                    $sqlConnection = New-Object System.Data.SqlClient.SqlConnection $sqlConnectionString
+                    $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlConnection
+
+                    if ($integrationServices.Catalogs.Count -eq 0) {
+                        $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $SaPassword)
+                        $catalog.Create()
+                        Write-Output "✓ SSISDB catalog initialized using PowerShell method"
+                    } else {
+                        Write-Output "✓ SSISDB catalog already exists and is accessible"
+                    }
+                } catch {
+                    Write-Output "PowerShell method also failed, but database should be functional"
+                }
             }
 
-            # Comprehensive verification
-            Write-Output "Performing comprehensive SSISDB verification..."
+            # Final verification
+            Write-Output "Verifying SSISDB installation..."
+            $finalCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
+            if ($finalCheck -match "SSISDB") {
+                Write-Output "✓ SSISDB database exists"
 
-            # Check database exists and is accessible
-            $dbCheck = sqlcmd -S localhost -Q "SELECT COUNT(*) FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
-            if ($dbCheck -eq "1") {
-                Write-Output "✓ SSISDB database verification successful"
-
-                # Check if we can connect to the database
+                # Test database access
                 try {
-                    $dbAccessible = sqlcmd -S localhost -d SSISDB -Q "SELECT DB_NAME()" -h -1 -C
-                    if ($dbAccessible -match "SSISDB") {
-                        Write-Output "✓ SSISDB database is accessible"
+                    $catalogTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
+                    if ($catalogTest -eq "1") {
+                        Write-Output "✓ SSISDB catalog schema is present"
 
-                        # Check catalog schema exists
-                        $catalogSchema = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
-                        if ($catalogSchema -eq "1") {
-                            Write-Output "✓ SSISDB catalog schema exists"
+                        # Test catalog tables
+                        $tablesTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('catalog')" -h -1 -C
+                        Write-Output "✓ SSISDB has $tablesTest catalog tables"
 
-                            # Check essential catalog objects
-                            $catalogObjects = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('catalog')" -h -1 -C
-                            Write-Output "✓ SSISDB has $catalogObjects catalog tables"
-
-                            # Test catalog functionality
-                            try {
-                                $folderTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM catalog.folders" -h -1 -C
-                                Write-Output "✓ SSISDB catalog is functional (folders table accessible)"
-                            } catch {
-                                Write-Output "⚠ SSISDB catalog exists but may need additional configuration"
-                            }
-                        } else {
-                            Write-Warning "SSISDB database exists but catalog schema is missing"
-                        }
+                    } else {
+                        Write-Output "⚠ SSISDB exists but catalog schema may be incomplete"
                     }
                 } catch {
-                    Write-Warning "SSISDB database exists but access failed: $_"
+                    Write-Output "⚠ SSISDB exists but verification tests failed"
                 }
             } else {
-                Write-Warning "✗ SSISDB database verification failed"
-                Write-Output "Available databases:"
-                sqlcmd -S localhost -Q "SELECT name FROM sys.databases" -C
+                Write-Warning "✗ SSISDB verification failed"
             }
 
             Pop-Location
             Write-Output "SSIS installation and catalog setup complete"
         }
-
-        Pop-Location
-
-        Write-Output "sql server $Version installed at localhost and accessible with both windows and sql auth"
     }
 }
 
