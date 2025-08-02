@@ -337,10 +337,14 @@ if ("sqlengine" -in $Install) {
                 # Restore SSISDB from backup
                 Write-Output "Restoring SSISDB from backup..."
 
-                # Get the parent directory of the backup file for placing restored files
-                $backupParentDir = Split-Path -Parent $ssisdbBackup
-                $dataFilePath = Join-Path $backupParentDir "SSISDB.mdf"
-                $logFilePath = Join-Path $backupParentDir "SSISDB.ldf"
+                # Get the default data directory where master database is located
+                Write-Output "Getting SQL Server default data directory..."
+                $dataDir = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT LEFT(physical_name, LEN(physical_name) - LEN('master.mdf')) FROM sys.master_files WHERE database_id = 1 AND type = 0" -h -1 -C
+                $dataDirectory = ($dataDir | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1).Trim()
+                Write-Output "Using data directory: $dataDirectory"
+
+                $dataFilePath = Join-Path $dataDirectory "SSISDB.mdf"
+                $logFilePath = Join-Path $dataDirectory "SSISDB.ldf"
 
                 $restoreSql = @"
 RESTORE DATABASE [SSISDB] FROM DISK = N'$ssisdbBackup'
