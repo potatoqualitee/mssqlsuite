@@ -309,38 +309,100 @@ if ("sqlengine" -in $Install) {
                         Write-Warning "GAC loading failed: $_"
                     }
 
-                    # Strategy 3: Try file paths with Add-Type
+                    # Strategy 3: Dynamic recursive search for assemblies
                     try {
-                        Write-Output "Trying file path loading with Add-Type..."
-                        $fallbackPaths = @(
-                            "C:\Program Files (x86)\Microsoft SQL Server\160\SDK\Assemblies",
-                            "C:\Program Files (x86)\Microsoft SQL Server\150\SDK\Assemblies",
-                            "C:\Program Files (x86)\Microsoft SQL Server\140\SDK\Assemblies",
-                            "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies"
+                        Write-Output "Searching for SMO assemblies recursively..."
+
+                        # Search common SQL Server installation directories
+                        $searchPaths = @(
+                            "C:\Program Files\Microsoft SQL Server",
+                            "C:\Program Files (x86)\Microsoft SQL Server",
+                            "C:\Program Files\Common Files\Microsoft Shared",
+                            "C:\Program Files (x86)\Common Files\Microsoft Shared"
                         )
 
-                        foreach ($basePath in $fallbackPaths) {
-                            if (Test-Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") {
-                                Write-Output "Using assembly path: $basePath"
+                        foreach ($searchPath in $searchPaths) {
+                            if (Test-Path $searchPath) {
+                                Write-Output "Searching in: $searchPath"
 
-                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
-                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
-                                Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
-                                Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
+                                # Find the IntegrationServices assembly first
+                                $integrationServicesAssembly = Get-ChildItem -Path $searchPath -Recurse -Filter "Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-                                # Test if the type is available
-                                $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
-                                Write-Output "File path loading successful and verified from: $basePath"
-                                return $true
+                                if ($integrationServicesAssembly) {
+                                    $basePath = $integrationServicesAssembly.DirectoryName
+                                    Write-Output "Found SMO assemblies in: $basePath"
+
+                                    # Check if all required assemblies exist in the same directory
+                                    $requiredAssemblies = @(
+                                        "Microsoft.SqlServer.Management.Sdk.Sfc.dll",
+                                        "Microsoft.SqlServer.Management.Common.dll",
+                                        "Microsoft.SqlServer.Smo.dll",
+                                        "Microsoft.SqlServer.Management.IntegrationServices.dll"
+                                    )
+
+                                    $allAssembliesFound = $true
+                                    foreach ($assembly in $requiredAssemblies) {
+                                        if (-not (Test-Path "$basePath\$assembly")) {
+                                            Write-Warning "Missing assembly: $basePath\$assembly"
+                                            $allAssembliesFound = $false
+                                        }
+                                    }
+
+                                    if ($allAssembliesFound) {
+                                        Write-Output "Loading assemblies from: $basePath"
+
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
+
+                                        # Test if the type is available
+                                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
+                                        Write-Output "Dynamic search successful! Assemblies loaded from: $basePath"
+                                        return $true
+                                    }
+                                }
                             }
                         }
-                        throw "No assembly paths found"
+
+                        # If not found in common locations, search entire Program Files
+                        Write-Output "Searching entire Program Files directories..."
+                        $programFilesPaths = @("C:\Program Files", "C:\Program Files (x86)")
+
+                        foreach ($programPath in $programFilesPaths) {
+                            if (Test-Path $programPath) {
+                                $integrationServicesAssembly = Get-ChildItem -Path $programPath -Recurse -Filter "Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+                                if ($integrationServicesAssembly) {
+                                    $basePath = $integrationServicesAssembly.DirectoryName
+                                    Write-Output "Found assemblies in Program Files at: $basePath"
+
+                                    try {
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction SilentlyContinue
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction SilentlyContinue
+                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
+
+                                        # Test if the type is available
+                                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
+                                        Write-Output "Full system search successful! Assemblies loaded from: $basePath"
+                                        return $true
+                                    }
+                                    catch {
+                                        Write-Warning "Failed to load from found path: $basePath - $_"
+                                        continue
+                                    }
+                                }
+                            }
+                        }
+
+                        throw "No SMO assemblies found anywhere on the system"
                     }
                     catch {
-                        Write-Warning "File path loading failed: $_"
+                        Write-Warning "Dynamic assembly search failed: $_"
                     }
 
-                    Write-Error "All assembly loading strategies failed. SMO assemblies not available."
+                    Write-Error "All assembly loading strategies failed. SMO assemblies not available on this system."
                     return $false
                 }
 
