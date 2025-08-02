@@ -328,6 +328,7 @@ if ("sqlengine" -in $Install) {
             }
             catch {
                 Write-Error "Failed to create SSISDB catalog with SMO: $_"
+                $PSItem | Select-Object -Property * | Write-Warning
                 if ($sqlconnection -and $sqlconnection.State -eq 'Open') {
                     $sqlconnection.Close()
                 }
