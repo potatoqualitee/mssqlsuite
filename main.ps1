@@ -268,76 +268,167 @@ if ("sqlengine" -in $Install) {
                 }
             }
 
-           # Force restore SSISDB - find the backup file properly
-            Write-Output "Force restoring SSISDB catalog from backup..."
+            # Create SSISDB catalog using SMO
+            Write-Output "Creating SSISDB catalog using SMO..."
+            try {
+                # Load SMO functions
+                function Load-SSISAssemblies {
+                    try {
+                        # Try to load from GAC first (preferred method)
+                        Write-Output "Loading SMO assemblies from GAC..."
 
-            # Always drop existing SSISDB
-            Write-Output "Dropping any existing SSISDB database..."
-            sqlcmd -S localhost -Q "IF EXISTS(SELECT * FROM sys.databases WHERE name = 'SSISDB') DROP DATABASE [SSISDB];" -C
+                        # Load core SMO assemblies
+                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Sdk.Sfc") | Out-Null
+                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Common") | Out-Null
+                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
+                        [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
 
-            # Find ALL .bak files and show them
-            Write-Warning "Searching for all .bak files..."
-            Get-ChildItem -Path "C:\Program Files\Microsoft SQL Server\" -Recurse -Filter "*.bak" -ErrorAction SilentlyContinue | ForEach-Object { Write-Warning "Found: $($_.FullName)" }
+                        Write-Output "Successfully loaded SSIS SMO assemblies from GAC"
+                        return $true
+                    }
+                    catch {
+                        Write-Warning "Failed to load from GAC, trying alternative methods: $_"
 
-            # Find the SSISDB backup file - search properly
-            Write-Output "Searching for SSISDBBackup.bak..."
-            $backupPath = Get-ChildItem -Path "C:\Program Files\Microsoft SQL Server\" -Recurse -Filter "*SSISDB*.bak" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+                        try {
+                            # Fallback: try common installation paths using LoadFrom
+                            $fallbackPaths = @(
+                                "C:\Program Files (x86)\Microsoft SQL Server\160\SDK\Assemblies",
+                                "C:\Program Files (x86)\Microsoft SQL Server\150\SDK\Assemblies",
+                                "C:\Program Files (x86)\Microsoft SQL Server\140\SDK\Assemblies",
+                                "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies"
+                            )
 
-            if (-not $backupPath) {
-                Write-Output "No SSISDB backup found in SQL Server folder, searching entire C: drive..."
-                $backupPath = Get-ChildItem -Path "C:\" -Recurse -Filter "*SSISDB*.bak" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-            }
+                            foreach ($basePath in $fallbackPaths) {
+                                if (Test-Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") {
+                                    Write-Warning "Using fallback assembly path: $basePath"
 
-            if (-not $backupPath) {
-                Write-Error "SSISDBBackup.bak not found anywhere on the system."
-                Pop-Location
-                return
-            }
+                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll") | Out-Null
+                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.Common.dll") | Out-Null
+                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Smo.dll") | Out-Null
+                                    [System.Reflection.Assembly]::LoadFrom("$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll") | Out-Null
 
-            Write-Output "Found SSISDBBackup.bak at: $backupPath"
+                                    Write-Output "Successfully loaded SSIS SMO assemblies from: $basePath"
+                                    return $true
+                                }
+                            }
 
-            # RESTORE - period, no alternatives
-            Write-Output "Restoring SSISDB from backup to C:\temp..."
-            $restoreCmd = @"
-            RESTORE DATABASE [SSISDB]
-            FROM DISK = N'$backupPath'
-            WITH REPLACE,
-            MOVE N'data' TO N'C:\temp\SSISDB.mdf',
-            MOVE N'log' TO N'C:\temp\SSISDB.ldf'
-"@
-
-            sqlcmd -S localhost -Q "$restoreCmd" -C
-
-            if ($LASTEXITCODE -eq 0) {
-                Write-Output "✓ SSISDB restored successfully"
-
-                # Configure the restored database
-                sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
-                sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
-
-                # Initialize catalog with the restored stored procedure
-                Write-Output "Initializing SSISDB catalog..."
-                $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
-                sqlcmd -S localhost -Q "$initCatalog" -C
-
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Output "✓ SSISDB catalog initialized successfully"
-                } else {
-                    Write-Error "Failed to initialize SSISDB catalog"
+                            throw "No SQL Server SMO assemblies found. Please ensure SQL Server client tools are installed."
+                        }
+                        catch {
+                            Write-Error "Failed to load SSIS SMO assemblies: $_"
+                            return $false
+                        }
+                    }
                 }
-            } else {
-                Write-Error "SSISDB restore failed completely - no fallbacks"
-                Pop-Location
-                return
-            }
 
-            # Simple verification
-            Write-Output "Verifying SSISDB..."
-            $dbCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
-            if ($dbCheck -match "SSISDB") {
-                Write-Output "✓ SSISDB database exists and is accessible"
-            } else {
-                Write-Error "✗ SSISDB verification failed"
+                function Get-SqlServerVersion {
+                    param(
+                        [string]$ServerName = "localhost",
+                        [System.Management.Automation.PSCredential]$SqlCredential = $null
+                    )
+
+                    try {
+                        if ($SqlCredential) {
+                            $connectionString = "Server=$ServerName;User Id=$($SqlCredential.UserName);Password=$($SqlCredential.GetNetworkCredential().Password);TrustServerCertificate=True"
+                        } else {
+                            $connectionString = "Server=$ServerName;Integrated Security=True;TrustServerCertificate=True"
+                        }
+
+                        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+                        $connection.Open()
+
+                        $command = $connection.CreateCommand()
+                        $command.CommandText = "SELECT SERVERPROPERTY('ProductMajorVersion') AS MajorVersion"
+                        $result = $command.ExecuteScalar()
+
+                        $connection.Close()
+                        return [int]$result
+                    }
+                    catch {
+                        Write-Warning "Could not detect SQL Server version: $_"
+                        return $versionMajor  # Use the version from the main script
+                    }
+                }
+
+                function New-SSISCatalogUsingSMO {
+                    param(
+                        [string]$ServerName = "localhost",
+                        [string]$CatalogPassword,
+                        [System.Management.Automation.PSCredential]$SqlCredential = $null,
+                        [int]$SqlVersionMajor = 16
+                    )
+
+                    if (-not (Load-SSISAssemblies -SqlVersionMajor $SqlVersionMajor)) {
+                        throw "Failed to load SSIS SMO assemblies"
+                    }
+
+                    try {
+                        $serverConnection = New-Object Microsoft.SqlServer.Management.Common.ServerConnection($ServerName)
+
+                        if ($SqlCredential) {
+                            $serverConnection.LoginSecure = $false
+                            $serverConnection.Login = $SqlCredential.UserName
+                            $serverConnection.SecurePassword = $SqlCredential.Password
+                        } else {
+                            $serverConnection.LoginSecure = $true
+                        }
+
+                        $smoServer = New-Object Microsoft.SqlServer.Management.Smo.Server($serverConnection)
+                        $smoServer.ConnectionContext.Connect()
+                        Write-Output "Connected to SQL Server: $($smoServer.Name) (Version: $($smoServer.Version))"
+
+                        $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices($smoServer)
+
+                        if ($integrationServices.Catalogs.Contains("SSISDB")) {
+                            Write-Warning "SSISDB catalog already exists"
+                            return $true
+                        }
+
+                        Write-Output "Creating SSISDB catalog..."
+
+                        if (-not $CatalogPassword) {
+                            $CatalogPassword = "dbatools.I0"
+                            Write-Warning "No catalog password specified, using default"
+                        }
+
+                        $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $CatalogPassword)
+                        $catalog.Create()
+
+                        Write-Output "SSISDB catalog created successfully"
+                        return $true
+                    }
+                    catch {
+                        Write-Error "Failed to create SSISDB catalog: $_"
+                        return $false
+                    }
+                    finally {
+                        if ($smoServer -and $smoServer.ConnectionContext.IsOpen) {
+                            $smoServer.ConnectionContext.Disconnect()
+                        }
+                    }
+                }
+
+                # Detect SQL Server version
+                $detectedVersion = Get-SqlServerVersion -ServerName "localhost"
+                Write-Output "Detected SQL Server version: $detectedVersion"
+
+                # Create credentials if needed
+                $sqlCredential = $null
+                if ($SaPassword) {
+                    $securePassword = ConvertTo-SecureString $SaPassword -AsPlainText -Force
+                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
+                }
+
+                # Create SSISDB catalog using SMO
+                $success = New-SSISCatalogUsingSMO -ServerName "localhost" -CatalogPassword $SaPassword -SqlCredential $sqlCredential -SqlVersionMajor $detectedVersion
+
+                if (-not $success) {
+                    throw "SSISDB catalog creation failed"
+                }
+
+                Write-Output "SSISDB catalog creation completed successfully."
+            } catch {
+                Write-Error "Failed to create SSISDB catalog: $_"
             }
         }
     }
