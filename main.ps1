@@ -272,73 +272,160 @@ if ("sqlengine" -in $Install) {
                 }
             }
 
-            # Create SSISDB catalog using SMO
-            Write-Output "Creating SSISDB catalog using SMO..."
-            # Set PSGallery as trusted to avoid prompts
-            if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
-                Write-Output "Setting PSGallery as trusted..."
-                Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-            }
-
-            # Install specific version of dbatools
-            $requiredVersion = "2.1.32"
-            Write-Output "Installing dbatools version $requiredVersion..."
-
-            Install-Module -Name dbatools -RequiredVersion $requiredVersion -Force -Scope CurrentUser -AllowClobber
-
-            # Import the module
-            Write-Output "Importing dbatools module..."
-            Import-Module dbatools -Force
-            $null = Set-DbatoolsInsecureConnection
-
-            # Create SSISDB catalog using SMO
-            Write-Output "Creating SSISDB catalog using SMO..."
+            # Create SSISDB catalog using direct T-SQL execution
+            Write-Output "Creating SSISDB catalog using T-SQL..."
 
             try {
-                # Test connection with dbatools first
-                Write-Output "Testing connection with dbatools..."
-                $dbaInstance = Connect-DbaInstance -SqlInstance localhost -SqlCredential (New-Object System.Management.Automation.PSCredential($AdminUsername, (ConvertTo-SecureString $SaPassword -AsPlainText -Force))) -TrustServerCertificate
-                Write-Output "dbatools connection successful"
-
                 # Set catalog password - use provided SaPassword or default
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
-                $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
 
-                # Load required assemblies
-                Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
-                Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
-
-                # Create ServerConnection object for SMO v16+
-                $serverConn = New-Object Microsoft.SqlServer.Management.Common.ServerConnection("localhost", $AdminUsername, $SaPassword)
-                $serverConn.TrustServerCertificate = $true
-                $serverConn.EncryptConnection = $false
-
-                # Create Server object using ServerConnection
-                $server = New-Object Microsoft.SqlServer.Management.Smo.Server($serverConn)
-
-                # Create Integration Services object - correct SMO v16 constructor
-                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices($server)
-
-                if ($ssis.Catalogs["SSISDB"]) {
-                    Write-Output "SSIS Catalog already exists"
-                } else {
-                    # Create SSISDB catalog using static method for SMO v16+
-                    $catalogName = "SSISDB"
-                    [Microsoft.SqlServer.Management.IntegrationServices.Catalog]::CreateCatalog($server, $securePassword, $catalogName, $false)
-
-                    Write-Output "SSISDB catalog created successfully using SMO"
+                # Check if SSISDB already exists
+                Write-Output "Checking if SSISDB catalog already exists..."
+                $dbExists = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT DB_ID('SSISDB')" -h -1 -C
+                if ($dbExists -and $dbExists.Trim() -ne "NULL" -and $dbExists.Trim() -ne "") {
+                    Write-Output "SSISDB catalog already exists"
+                    return
                 }
 
-                # Close connection
-                $serverConn.Disconnect()
+                # Detect SQL Server version for choosing assembly registration method
+                Write-Output "Detecting SQL Server version..."
+                $sqlVersion = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT SERVERPROPERTY('ProductMajorVersion')" -h -1 -C
+                $majorVersion = [int]$sqlVersion.Trim()
+                Write-Output "Detected SQL Server major version: $majorVersion"
+
+                # Find Microsoft.SqlServer.IntegrationServices.Server.dll dynamically
+                Write-Output "Finding Integration Services DLL..."
+                $sqlServerPaths = @(
+                    "C:\Program Files\Microsoft SQL Server",
+                    "C:\Program Files (x86)\Microsoft SQL Server"
+                )
+
+                $integrationServicesDll = $null
+                foreach ($basePath in $sqlServerPaths) {
+                    if (Test-Path $basePath) {
+                        $foundDlls = Get-ChildItem -Path $basePath -Recurse -Filter "Microsoft.SqlServer.IntegrationServices.Server.dll" -ErrorAction SilentlyContinue
+                        if ($foundDlls) {
+                            # Prefer the highest version number in the path
+                            $integrationServicesDll = ($foundDlls | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+                            break
+                        }
+                    }
+                }
+
+                if (-not $integrationServicesDll) {
+                    throw "Could not find Microsoft.SqlServer.IntegrationServices.Server.dll"
+                }
+                Write-Output "Found Integration Services DLL at: $integrationServicesDll"
+
+                # Create SSISDB database
+                Write-Output "Creating SSISDB database..."
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "CREATE DATABASE [SSISDB]" -C
+
+                # Create database master key
+                Write-Output "Creating database master key..."
+                $masterKeySql = @"
+USE [SSISDB];
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$catalogPassword';
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$masterKeySql" -C
+
+                # Register assembly based on SQL Server version
+                if ($majorVersion -ge 14) {
+                    # SQL Server 2017+ - Use trusted assemblies
+                    Write-Output "Registering assembly using trusted assemblies method (SQL Server 2017+)..."
+                    $trustedAssemblySql = @"
+USE [SSISDB];
+DECLARE @asm_bin VARBINARY(max);
+DECLARE @isServerHashCode VARBINARY(64);
+SELECT @asm_bin = BulkColumn FROM OPENROWSET (BULK '$integrationServicesDll', SINGLE_BLOB) AS dll;
+SELECT @isServerHashCode = HASHBYTES('SHA2_512', @asm_bin);
+IF NOT EXISTS(SELECT * FROM sys.trusted_assemblies WHERE hash = @isServerHashCode)
+    EXEC sys.sp_add_trusted_assembly @isServerHashCode, N'$integrationServicesDll';
+"@
+                    sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$trustedAssemblySql" -C
+                } else {
+                    # SQL Server 2016 - Use asymmetric key
+                    Write-Output "Registering assembly using asymmetric key method (SQL Server 2016)..."
+                    $asymmetricKeySql = @"
+USE [SSISDB];
+CREATE ASYMMETRIC KEY MS_SQLEnableSystemAssemblyLoadingKey FROM EXECUTABLE FILE = '$integrationServicesDll';
+CREATE LOGIN ##MS_SQLEnableSystemAssemblyLoadingUser## FROM ASYMMETRIC KEY MS_SQLEnableSystemAssemblyLoadingKey;
+GRANT UNSAFE ASSEMBLY TO ##MS_SQLEnableSystemAssemblyLoadingUser##;
+"@
+                    sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$asymmetricKeySql" -C
+                }
+
+                # Create the SSIS catalog using T-SQL
+                Write-Output "Creating SSIS catalog..."
+                $createCatalogSql = @"
+USE [SSISDB];
+EXEC [catalog].[create_catalog] @password = N'$catalogPassword';
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$createCatalogSql" -C
+
+                # Create startup procedure
+                Write-Output "Creating startup procedure..."
+                $startupProcSql = @"
+USE master;
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ssis_startup')
+    DROP PROCEDURE [dbo].[sp_ssis_startup];
+
+CREATE PROCEDURE [dbo].[sp_ssis_startup]
+AS
+SET NOCOUNT ON
+    IF DB_ID('SSISDB') IS NULL
+        RETURN
+    IF NOT EXISTS(SELECT name FROM [SSISDB].sys.procedures WHERE name = N'startup')
+        RETURN
+    DECLARE @script nvarchar(500)
+    SET @script = N'EXEC [SSISDB].[catalog].[startup]'
+    EXECUTE sp_executesql @script;
+
+EXEC sp_procoption N'sp_ssis_startup', 'startup', 'on';
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$startupProcSql" -C
+
+                # Setup maintenance job for SSIS catalog cleanup
+                Write-Output "Setting up SSIS maintenance job..."
+                $maintenanceJobSql = @"
+USE msdb;
+
+-- Create the maintenance job
+IF NOT EXISTS (SELECT job_id FROM dbo.sysjobs WHERE name = N'SSIS Server Maintenance Job')
+BEGIN
+    EXEC dbo.sp_add_job
+        @job_name = N'SSIS Server Maintenance Job',
+        @enabled = 1,
+        @description = N'Maintenance job for SSIS catalog cleanup operations';
+
+    EXEC dbo.sp_add_jobstep
+        @job_name = N'SSIS Server Maintenance Job',
+        @step_name = N'SSIS Server Operation Records Cleanup',
+        @command = N'EXEC [SSISDB].[catalog].[cleanup_server_log] @SERVER_LOG_DAYS=30',
+        @database_name = N'SSISDB';
+
+    EXEC dbo.sp_add_schedule
+        @schedule_name = N'SSIS Server Maintenance Schedule',
+        @freq_type = 4,
+        @freq_interval = 1,
+        @freq_subday_type = 1,
+        @active_start_time = 0;
+
+    EXEC dbo.sp_attach_schedule
+        @job_name = N'SSIS Server Maintenance Job',
+        @schedule_name = N'SSIS Server Maintenance Schedule';
+
+    EXEC dbo.sp_add_jobserver
+        @job_name = N'SSIS Server Maintenance Job';
+END
+"@
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$maintenanceJobSql" -C
+
+                Write-Output "SSISDB catalog created successfully using T-SQL"
             }
             catch {
-
                 $PSItem | Select-Object -Property * | Write-Warning
-                Write-Error "Failed to create SSISDB catalog with SMO: $_"
-                if ($sqlconnection -and $sqlconnection.State -eq 'Open') {
-                    $sqlconnection.Close()
-                }
+                Write-Error "Failed to create SSISDB catalog with T-SQL: $_"
                 throw
             }
 
