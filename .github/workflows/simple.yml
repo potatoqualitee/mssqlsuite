@@ -39,10 +39,10 @@ jobs:
       - name: Check full-text search disabled
         shell: pwsh
         run: |
-          ./Test-FullTextSearch -UserName sa -Password c0MplicatedP@ssword -ExpectedStatus NotRunning
+          ./Test-FullTextSearch -UserName sa -Password dbatools.I0 -ExpectedStatus NotRunning
 
       - name: Check SSISDB catalog (Windows only)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./Test-SSISCatalog.ps1 -UserName sa -Password dbatools.I0
+          ./Test-SSISCatalog -UserName sa -Password dbatools.I0

@@ -102,12 +102,12 @@ jobs:
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb, fulltext, ssis
           version: 2019
-          sa-password: c0MplicatedP@ssword
+          sa-password: dbatools.I0
           show-log: true
           collation: Latin1_General_BIN
 
       - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;" -C
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
 ```
 
 Using a custom admin username instead of the default 'sa'

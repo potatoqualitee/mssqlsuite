@@ -28,7 +28,7 @@ jobs:
         uses: ./
         with:
           install: sqlengine,fulltext,ssis
-          sa-password: c0MplicatedP@ssword
+          sa-password: dbatools.I0
           show-log: true
           collation: Latin1_General_BIN
           version: ${{ matrix.version }}
@@ -52,14 +52,21 @@ jobs:
           show-log: true
 
       - name: Run sqlcmd
-        run: sqlcmd -S localhost -U sa -P c0MplicatedP@ssword -d tempdb -Q "SELECT @@version;" -C
+        run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
 
       - name: Check collation
         shell: pwsh
         run: |
-          ./Test-Collation -ExpectedCollation Latin1_General_BIN -UserName sa -Password c0MplicatedP@ssword
+          ./Test-Collation -ExpectedCollation Latin1_General_BIN -UserName sa -Password dbatools.I0
 
       - name: Check full-text search enabled
         shell: pwsh
         run: |
-          ./Test-FullTextSearch -UserName sa -Password c0MplicatedP@ssword -ExpectedStatus Running
+          ./Test-FullTextSearch -UserName sa -Password dbatools.I0 -ExpectedStatus Running
+
+      - name: Check SSISDB catalog (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./Test-SSISCatalog -UserName sa -Password dbatools.I0
+
