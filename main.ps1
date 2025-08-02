@@ -422,6 +422,7 @@ END
             }
 
             Write-Output "SSISDB catalog creation completed successfully."
+        }
     }
 }
 
