@@ -422,10 +422,6 @@ END
             }
 
             Write-Output "SSISDB catalog creation completed successfully."
-        } catch {
-            $PSItem | Select-Object -Property * | Write-Warning
-            Write-Error "Failed to create SSISDB catalog: $_"
-        }
     }
 }
 
