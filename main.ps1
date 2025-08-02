@@ -127,8 +127,12 @@ if ("sqlengine" -in $Install) {
             }
         }
 
-        if ("fulltext" -in $Install) {
+        if ("fulltext" -in $Install -and "ssis" -in $Install) {
+            $features = "SQLEngine,FullText,IS"
+        } elseif ("fulltext" -in $Install) {
             $features = "SQLEngine,FullText"
+        } elseif ("ssis" -in $Install) {
+            $features = "SQLEngine,IS"
         } else {
             $features = "SQLEngine"
         }
@@ -146,6 +150,11 @@ if ("sqlengine" -in $Install) {
             "/IACCEPTSQLSERVERLICENSETERMS",
             "/SQLCOLLATION=$Collation"
         )
+
+        # Add SSIS-specific parameters if SSIS is being installed
+        if ("ssis" -in $Install) {
+            $installArgs += "/ISSVCSTARTUPTYPE=Automatic"
+        }
 
         Write-Warning "INSTALL ARGS: $installArgs"
 
@@ -203,48 +212,8 @@ if ("sqlengine" -in $Install) {
                 Write-Output "Using default instance: MSSQLSERVER"
             }
 
-            # Download and extract media (reuses $exeUri and $boxUri from main logic)
-            if (-not (Test-Path C:\temp)) { mkdir C:\temp }
-            Push-Location C:\temp
-            $ProgressPreference = "SilentlyContinue"
-
-            if ($boxUri -eq "") {
-                # For 2016 & 2017
-                if (-not (Test-Path "downloadsetup.exe")) {
-                    Invoke-WebRequest -Uri $exeUri -OutFile downloadsetup.exe
-                    Start-Process -Wait -FilePath ./downloadsetup.exe -ArgumentList /ACTION:Download, /QUIET, /MEDIAPATH:C:\temp
-                    Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
-                    Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
-                }
-            } else {
-                # For 2019 & 2022
-                if (-not (Test-Path "sqlsetup.exe")) {
-                    Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
-                }
-                if (-not (Test-Path "sqlsetup.box")) {
-                    Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
-                }
-            }
-
-            # Extract media if not already done
-            if (-not (Test-Path "setup\setup.exe")) {
-                Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
-            }
-
-            # Prepare SSIS add-on install arguments for existing instance
-            $ssisArgs = @(
-                "/Q",
-                "/ACTION=Install",
-                "/FEATURES=IS",
-                "/INSTANCENAME=$instanceName",
-                "/ISSVCSTARTUPTYPE=Automatic",
-                "/IACCEPTSQLSERVERLICENSETERMS"
-            )
-
-            # Run SSIS add-on install
-            Write-Output "Installing SSIS features..."
-            Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
-
+            # SSIS is now installed as part of the main SQL Server installation
+            Write-Output "SSIS was installed with SQL Server. Setting up SSISDB catalog..."
             Start-Sleep -Seconds 10 # Wait for services
 
             # Enable CLR integration (required for SSISDB catalog)
