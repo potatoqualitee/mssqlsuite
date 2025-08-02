@@ -268,144 +268,77 @@ if ("sqlengine" -in $Install) {
                 }
             }
 
-            # Create SSISDB catalog - BRUTE FORCE METHOD
-            Write-Output "Creating SSISDB catalog..."
+           # Force restore SSISDB - no checking, no fallbacks, just restore
+            Write-Output "Force restoring SSISDB catalog from backup..."
 
-            # Check if SSISDB already exists and drop it if it's broken
-            Write-Output "Checking for existing SSISDB database..."
-            $ssisdbExists = sqlcmd -S localhost -Q "SELECT COUNT(*) FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
+            # Always drop existing SSISDB
+            Write-Output "Dropping any existing SSISDB database..."
+            sqlcmd -S localhost -Q "IF EXISTS(SELECT * FROM sys.databases WHERE name = 'SSISDB') DROP DATABASE [SSISDB];" -C
 
-            if ($ssisdbExists -match "1") {
-                Write-Output "SSISDB database exists, checking if it's functional..."
+            # Find the backup file - it MUST exist
+            $backupPath = $null
+            $possiblePaths = @(
+                "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\DTS\Binn\SSISDBBackup.bak",
+                "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\Shared\SSISDBBackup.bak",
+                "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\Backup\SSISDBBackup.bak"
+            )
 
-                # Test if the catalog schema exists
-                $catalogExists = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C -ErrorAction SilentlyContinue
-
-                if ($catalogExists -notmatch "1" -or $LASTEXITCODE -ne 0) {
-                    Write-Output "SSISDB exists but appears broken. Dropping and recreating..."
-                    sqlcmd -S localhost -Q "DROP DATABASE [SSISDB];" -C
-                    $ssisdbExists = "0"
-                } else {
-                    Write-Output "SSISDB appears functional, skipping creation"
+            foreach ($path in $possiblePaths) {
+                if (Test-Path $path) {
+                    $backupPath = $path
+                    Write-Output "Found SSISDBBackup.bak at: $path"
+                    break
                 }
             }
 
-            if ($ssisdbExists -notmatch "1") {
-                # Find the backup file - try all possible locations
-                $backupPath = $null
-                $possiblePaths = @(
-                    "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\DTS\Binn\SSISDBBackup.bak",
-                    "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\Shared\SSISDBBackup.bak",
-                    "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\Backup\SSISDBBackup.bak"
-                )
-
-                foreach ($path in $possiblePaths) {
-                    if (Test-Path $path) {
-                        $backupPath = $path
-                        Write-Output "Found SSISDBBackup.bak at: $path"
-                        break
-                    }
-                }
-
-                if (-not $backupPath) {
-                    Write-Output "No SSISDBBackup.bak found. Creating SSISDB from scratch..."
-
-                    # Create SSISDB from scratch - this usually works better anyway
-                    try {
-                        Write-Output "Creating empty SSISDB database..."
-                        sqlcmd -S localhost -Q "CREATE DATABASE [SSISDB];" -C
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
-
-                        # Initialize the catalog - this creates all the necessary objects
-                        Write-Output "Initializing SSISDB catalog..."
-                        $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
-                        sqlcmd -S localhost -Q "$initCatalog" -C
-
-                        if ($LASTEXITCODE -eq 0) {
-                            Write-Output "✓ SSISDB created from scratch successfully"
-                        } else {
-                            Write-Error "Failed to initialize SSISDB catalog"
-                        }
-                    } catch {
-                        Write-Error "Failed to create SSISDB from scratch: $_"
-                        Pop-Location
-                        return
-                    }
-                } else {
-                    # Try restore method
-                    Write-Output "Attempting to restore SSISDB from backup..."
-
-                    $restoreCmd = @"
-RESTORE DATABASE [SSISDB]
-FROM DISK = N'$backupPath'
-WITH REPLACE,
-MOVE N'data' TO N'C:\temp\SSISDB.mdf',
-MOVE N'log' TO N'C:\temp\SSISDB.ldf'
-"@
-
-                    sqlcmd -S localhost -Q "$restoreCmd" -C
-
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Output "✓ SSISDB restored successfully"
-
-                        # Configure the restored database
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
-
-                        # Try to initialize catalog if needed
-                        $catalogTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
-                        if ($catalogTest -notmatch "1") {
-                            Write-Output "Catalog schema missing, initializing..."
-                            $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
-                            sqlcmd -S localhost -Q "$initCatalog" -C
-                        }
-                    } else {
-                        Write-Output "Restore failed, falling back to from-scratch creation..."
-
-                        # Clean up any partial restore
-                        sqlcmd -S localhost -Q "IF EXISTS(SELECT * FROM sys.databases WHERE name = 'SSISDB') DROP DATABASE [SSISDB];" -C
-
-                        # Create from scratch as fallback
-                        sqlcmd -S localhost -Q "CREATE DATABASE [SSISDB];" -C
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
-                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
-
-                        $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
-                        sqlcmd -S localhost -Q "$initCatalog" -C
-
-                        if ($LASTEXITCODE -eq 0) {
-                            Write-Output "✓ SSISDB created from scratch as fallback"
-                        } else {
-                            Write-Error "All SSISDB creation methods failed"
-                        }
-                    }
-                }
+            if (-not $backupPath) {
+                Write-Error "SSISDBBackup.bak not found. SSIS installation is incomplete."
+                Pop-Location
+                return
             }
 
-            # Final verification - actually test the damn thing
-            Write-Output "Verifying SSISDB installation..."
-            $dbCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
-            if ($dbCheck -match "SSISDB") {
-                Write-Output "✓ SSISDB database exists"
+            # RESTORE - period, no alternatives
+            Write-Output "Restoring SSISDB from backup to C:\temp..."
+            $restoreCmd = @"
+            RESTORE DATABASE [SSISDB]
+            FROM DISK = N'$backupPath'
+            WITH REPLACE,
+            MOVE N'data' TO N'C:\temp\SSISDB.mdf',
+            MOVE N'log' TO N'C:\temp\SSISDB.ldf'
+            "@
 
-                # Test catalog functionality
-                $catalogCheck = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
-                if ($catalogCheck -match "1") {
-                    Write-Output "✓ SSISDB catalog schema exists"
+            sqlcmd -S localhost -Q "$restoreCmd" -C
 
-                    # Test if we can actually use it
-                    $functionalTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM [catalog].[catalog_properties]" -h -1 -C
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Output "✓ SSISDB catalog is fully functional"
-                    } else {
-                        Write-Output "⚠ SSISDB catalog exists but may not be fully functional"
-                    }
+            if ($LASTEXITCODE -eq 0) {
+                Write-Output "✓ SSISDB restored successfully"
+
+                # Configure the restored database
+                sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
+                sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
+
+                # Initialize catalog with the restored stored procedure
+                Write-Output "Initializing SSISDB catalog..."
+                $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
+                sqlcmd -S localhost -Q "$initCatalog" -C
+
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Output "✓ SSISDB catalog initialized successfully"
                 } else {
-                    Write-Warning "✗ SSISDB exists but catalog schema is missing"
+                    Write-Error "Failed to initialize SSISDB catalog"
                 }
             } else {
-                Write-Warning "✗ SSISDB database creation failed completely"
+                Write-Error "SSISDB restore failed completely - no fallbacks"
+                Pop-Location
+                return
+            }
+
+            # Simple verification
+            Write-Output "Verifying SSISDB..."
+            $dbCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
+            if ($dbCheck -match "SSISDB") {
+                Write-Output "✓ SSISDB database exists and is accessible"
+            } else {
+                Write-Error "✗ SSISDB verification failed"
             }
         }
     }
