@@ -1,9 +1,9 @@
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$ExpectedStatus,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$UserName,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$Password
 )
 

@@ -1,9 +1,9 @@
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$ExpectedCollation,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$UserName,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$Password
 )
 
@@ -11,7 +11,6 @@ $Collation = sqlcmd -S localhost -d tempdb -U $UserName -P $Password -Q "SET NOC
 
 if ($Collation -ne $ExpectedCollation){
     throw "Collation is $Collation.  Expected $ExpectedCollation"
-}
-else{
+} else{
     "Collation is $Collation"
 }

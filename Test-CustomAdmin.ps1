@@ -1,7 +1,7 @@
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$AdminUsername,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory)]
     [string]$Password
 )
 
