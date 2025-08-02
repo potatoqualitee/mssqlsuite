@@ -8,6 +8,10 @@ param (
     [ValidateSet("2022", "2019", "2017", "2016")]
     [string]$Version = "2022"
 )
+if (-not $isLinux -and -not $Ismacos -and -not $IsWindows) {
+    # its powershell
+    $isWindows = $true
+}
 # Warn if SSIS is requested on unsupported OS
 if (("ssis" -in $Install) -and ($islinux -or $ismacos)) {
     Write-Warning "The 'ssis' option is only supported on Windows. Skipping SSIS installation."
