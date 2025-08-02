@@ -289,6 +289,7 @@ if ("sqlengine" -in $Install) {
             # Import the module
             Write-Output "Importing dbatools module..."
             Import-Module dbatools -Force
+            $null = Set-DbatoolsInsecureConnection
 
             # Create SSISDB catalog using dbatools
             Write-Output "Creating SSISDB catalog using dbatools..."
