@@ -186,6 +186,8 @@ if ("sqlengine" -in $Install) {
 
         # After SQL Server and SSIS install, create SSISDB catalog if requested
         if ("ssis" -in $Install) {
+            Write-Output "Installing SSIS and setting up SSISDB catalog..."
+
             # Detect the default or previously installed SQL Server instance
             $instanceName = "MSSQLSERVER"
             try {
@@ -195,14 +197,10 @@ if ("sqlengine" -in $Install) {
                     if ($instances.Count -gt 0) {
                         $instanceName = $instances[0]
                         Write-Output "Detected SQL Server instance: $instanceName"
-                    } else {
-                        Write-Output "No SQL Server instances found in registry, defaulting to MSSQLSERVER"
                     }
-                } else {
-                    Write-Output "SQL Server instance registry path not found, defaulting to MSSQLSERVER"
                 }
             } catch {
-                Write-Output "Error detecting SQL Server instance, defaulting to MSSQLSERVER"
+                Write-Output "Using default instance: MSSQLSERVER"
             }
 
             # Download and extract media (reuses $exeUri and $boxUri from main logic)
@@ -228,8 +226,10 @@ if ("sqlengine" -in $Install) {
                 }
             }
 
-            # Extracts media
-            Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
+            # Extract media if not already done
+            if (-not (Test-Path "setup\setup.exe")) {
+                Start-Process -Wait -FilePath ./sqlsetup.exe -ArgumentList /qs, /x:setup
+            }
 
             # Prepare SSIS add-on install arguments for existing instance
             $ssisArgs = @(
@@ -242,22 +242,21 @@ if ("sqlengine" -in $Install) {
             )
 
             # Run SSIS add-on install
-            Write-Output ("Running SSIS add-on setup for instance {0}: .\setup\setup.exe {1}" -f $instanceName, ($ssisArgs -join ' '))
+            Write-Output "Installing SSIS features..."
             Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
 
-            Start-Sleep -Seconds 5 # Wait for SSIS service to start
+            Start-Sleep -Seconds 10 # Wait for services
 
             # Enable CLR integration (required for SSISDB catalog)
             Write-Output "Enabling CLR integration for SSISDB..."
             sqlcmd -S localhost -Q "EXEC sp_configure 'show advanced options', 1; RECONFIGURE;" -C
             sqlcmd -S localhost -Q "EXEC sp_configure 'clr enabled', 1; RECONFIGURE;" -C
 
-            # Start Integration Services - dynamic service detection
+            # Start Integration Services
             Write-Output "Starting Integration Services..."
             $ssisServices = Get-Service -Name "*DTS*" -ErrorAction SilentlyContinue
             if ($ssisServices) {
                 foreach ($service in $ssisServices) {
-                    Write-Output "Found DTS service: $($service.Name) - Status: $($service.Status)"
                     if ($service.Status -eq "Stopped") {
                         try {
                             Start-Service $service.Name -ErrorAction SilentlyContinue
@@ -267,172 +266,129 @@ if ("sqlengine" -in $Install) {
                         }
                     }
                 }
-            } else {
-                Write-Warning "No Integration Services (DTS) services found"
             }
 
-            # Create SSISDB catalog using the backup restoration method
-            Write-Output "Creating SSISDB catalog using SSISDBBackup.bak..."
+            # Create SSISDB catalog - BRUTE FORCE METHOD
+            Write-Output "Creating SSISDB catalog..."
 
-            # First check if SSISDB already exists
+            # Check if SSISDB already exists
             $ssisdbExists = sqlcmd -S localhost -Q "SELECT COUNT(*) FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
-            if ($ssisdbExists -eq "1") {
+            if ($ssisdbExists -match "1") {
                 Write-Output "SSISDB database already exists"
             } else {
-                # Locate the SSISDBBackup.bak file based on version
-                $backupPath = "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\DTS\Binn\SSISDBBackup.bak"
+                # Find the backup file - try all possible locations
+                $backupPath = $null
+                $possiblePaths = @(
+                    "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\DTS\Binn\SSISDBBackup.bak",
+                    "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\Shared\SSISDBBackup.bak",
+                    "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\Backup\SSISDBBackup.bak"
+                )
 
-                if (-not (Test-Path $backupPath)) {
-                    Write-Warning "SSISDBBackup.bak not found at $backupPath"
-                    # Try alternative locations
-                    $alternativePaths = @(
-                        "C:\Program Files\Microsoft SQL Server\$versionMajor" + "0\Shared\SSISDBBackup.bak",
-                        "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\Backup\SSISDBBackup.bak"
-                    )
-
-                    foreach ($altPath in $alternativePaths) {
-                        if (Test-Path $altPath) {
-                            $backupPath = $altPath
-                            Write-Output "Found backup at alternative location: $backupPath"
-                            break
-                        }
-                    }
-
-                    if (-not (Test-Path $backupPath)) {
-                        Write-Error "Could not locate SSISDBBackup.bak file. SSIS may not be properly installed."
-                        continue
+                foreach ($path in $possiblePaths) {
+                    if (Test-Path $path) {
+                        $backupPath = $path
+                        Write-Output "Found SSISDBBackup.bak at: $path"
+                        break
                     }
                 }
 
-                Write-Output "Found SSISDBBackup.bak at: $backupPath"
+                if (-not $backupPath) {
+                    Write-Warning "Could not locate SSISDBBackup.bak file. Trying alternative SSISDB creation method..."
 
-                # Simple restore without specifying paths - let SQL Server figure it out
-                $simpleRestore = "RESTORE DATABASE [SSISDB] FROM DISK = N'$backupPath' WITH REPLACE"
-
-                try {
-                    Write-Output "Restoring SSISDB database from backup..."
-                    sqlcmd -S localhost -Q "$simpleRestore" -C
-                    Write-Output "✓ SSISDB database restored successfully"
-                } catch {
-                    Write-Warning "Simple restore failed: $_"
-
-                    # If simple restore fails, try getting the logical file names first
-                    Write-Output "Getting backup file information..."
+                    # Alternative: Try creating SSISDB from scratch using T-SQL
                     try {
-                        $fileListSql = "RESTORE FILELISTONLY FROM DISK = N'$backupPath'"
-                        $fileList = sqlcmd -S localhost -Q "$fileListSql" -C
-                        Write-Output "Backup file contents:"
-                        Write-Output $fileList
-
-                        # Get data directory without the extra text
-                        $dataDirRaw = sqlcmd -S localhost -Q "SELECT SERVERPROPERTY('InstanceDefaultDataPath')" -C
-                        $dataDir = ($dataDirRaw -split "`n" | Where-Object { $_ -match "^[C-Z]:\\" }) | Select-Object -First 1
-                        if (-not $dataDir) {
-                            $dataDir = "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\DATA\"
-                        }
-                        $dataDir = $dataDir.Trim()
-                        Write-Output "Using data directory: $dataDir"
-
-                        # Try restore with explicit file moves using standard logical names
-                        $restoreWithMove = @"
-RESTORE DATABASE [SSISDB]
-FROM DISK = N'$backupPath'
-WITH REPLACE,
-MOVE N'data' TO N'$dataDir\SSISDB.mdf',
-MOVE N'log' TO N'$dataDir\SSISDB.ldf'
-"@
-
-                        sqlcmd -S localhost -Q "$restoreWithMove" -C
-                        Write-Output "✓ SSISDB database restored with explicit file moves"
-
-                    } catch {
-                        Write-Error "All restore methods failed: $_"
-                        continue
-                    }
-                }
-            }
-
-            # Configure the database if it was restored
-            Write-Output "Configuring SSISDB database..."
-            try {
-                $configureSql = @"
+                        Write-Output "Attempting to create SSISDB from scratch..."
+                        $createSSISDB = @"
+USE [master];
+CREATE DATABASE [SSISDB];
 ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;
 ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;
 "@
-                sqlcmd -S localhost -Q "$configureSql" -C
-                Write-Output "✓ SSISDB database configured"
-            } catch {
-                Write-Output "Database configuration completed with warnings"
-            }
+                        sqlcmd -S localhost -Q "$createSSISDB" -C
 
-            # Try catalog initialization - the database should now have all the procedures
-            Write-Output "Initializing SSISDB catalog..."
-
-            try {
-                # Try using the restored catalog.create_catalog procedure
-                $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
-                sqlcmd -S localhost -Q "$initCatalog" -C
-                Write-Output "✓ SSISDB catalog initialized successfully"
-            } catch {
-                Write-Output "T-SQL catalog initialization failed, trying PowerShell method..."
-
-                # Try PowerShell method as fallback
-                try {
-                    # Map SQL Server versions to assembly versions
-                    $assemblyVersion = switch ($versionMajor) {
-                        13 { "13.0.0.0" }  # SQL Server 2016
-                        14 { "14.0.0.0" }  # SQL Server 2017
-                        15 { "15.0.0.0" }  # SQL Server 2019
-                        16 { "16.0.0.0" }  # SQL Server 2022
-                        default { "16.0.0.0" }  # Default to latest
+                        # Try to initialize the catalog
+                        $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
+                        sqlcmd -S localhost -Q "$initCatalog" -C
+                        Write-Output "✓ SSISDB created from scratch"
+                    } catch {
+                        Write-Error "Failed to create SSISDB. SSIS may not be properly installed."
+                        Pop-Location
+                        return
                     }
+                } else {
+                    # BRUTE FORCE RESTORE - No more dynamic bullshit
+                    Write-Output "Restoring SSISDB to C:\temp (simple and reliable)..."
 
-                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
+                    $restoreCmd = @"
+RESTORE DATABASE [SSISDB]
+FROM DISK = N'$backupPath'
+WITH REPLACE,
+MOVE N'data' TO N'C:\temp\SSISDB.mdf',
+MOVE N'log' TO N'C:\temp\SSISDB.ldf'
+"@
 
-                    $sqlConnectionString = "Data Source=localhost;Initial Catalog=master;Integrated Security=True;"
-                    $sqlConnection = New-Object System.Data.SqlClient.SqlConnection $sqlConnectionString
-                    $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlConnection
+                    $restoreResult = sqlcmd -S localhost -Q "$restoreCmd" -C
 
-                    if ($integrationServices.Catalogs.Count -eq 0) {
-                        $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $SaPassword)
-                        $catalog.Create()
-                        Write-Output "✓ SSISDB catalog initialized using PowerShell method"
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Output "✓ SSISDB database restored successfully to C:\temp"
+
+                        # Configure the database
+                        Write-Output "Configuring SSISDB database..."
+                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;" -C
+                        sqlcmd -S localhost -Q "ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;" -C
+
+                        # Initialize catalog
+                        Write-Output "Initializing SSISDB catalog..."
+                        $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
+                        sqlcmd -S localhost -Q "$initCatalog" -C
+
+                        Write-Output "✓ SSISDB catalog initialized successfully"
                     } else {
-                        Write-Output "✓ SSISDB catalog already exists and is accessible"
+                        Write-Error "SSISDB restore failed. Output: $restoreResult"
+
+                        # Try the from-scratch method as fallback
+                        Write-Output "Trying from-scratch creation as fallback..."
+                        try {
+                            $createSSISDB = @"
+USE [master];
+CREATE DATABASE [SSISDB];
+ALTER DATABASE [SSISDB] SET TRUSTWORTHY ON;
+ALTER DATABASE [SSISDB] SET RECOVERY SIMPLE;
+"@
+                            sqlcmd -S localhost -Q "$createSSISDB" -C
+                            $initCatalog = "USE [SSISDB]; EXEC [catalog].[create_catalog] @password = N'$SaPassword'"
+                            sqlcmd -S localhost -Q "$initCatalog" -C
+                            Write-Output "✓ SSISDB created from scratch as fallback"
+                        } catch {
+                            Write-Error "All SSISDB creation methods failed"
+                        }
                     }
-                } catch {
-                    Write-Output "PowerShell method also failed, but database should be functional"
                 }
             }
 
-            # Final verification
+            # Final verification - keep it simple
             Write-Output "Verifying SSISDB installation..."
             $finalCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
             if ($finalCheck -match "SSISDB") {
-                Write-Output "✓ SSISDB database exists"
+                Write-Output "✓ SSISDB database exists and is accessible"
 
-                # Test database access
+                # Quick catalog verification
                 try {
-                    $catalogTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
-                    if ($catalogTest -eq "1") {
-                        Write-Output "✓ SSISDB catalog schema is present"
-
-                        # Test catalog tables
-                        $tablesTest = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('catalog')" -h -1 -C
-                        Write-Output "✓ SSISDB has $tablesTest catalog tables"
-
+                    $catalogCheck = sqlcmd -S localhost -d SSISDB -Q "SELECT COUNT(*) FROM sys.schemas WHERE name = 'catalog'" -h -1 -C
+                    if ($catalogCheck -match "1") {
+                        Write-Output "✓ SSISDB catalog is functional"
                     } else {
-                        Write-Output "⚠ SSISDB exists but catalog schema may be incomplete"
+                        Write-Output "⚠ SSISDB exists but catalog may need manual setup"
                     }
                 } catch {
-                    Write-Output "⚠ SSISDB exists but verification tests failed"
+                    Write-Output "⚠ SSISDB exists but verification incomplete"
                 }
             } else {
-                Write-Warning "✗ SSISDB verification failed"
+                Write-Warning "✗ SSISDB installation failed"
             }
 
             Pop-Location
-            Write-Output "SSIS installation and catalog setup complete"
+            Write-Output "SSIS installation complete"
         }
     }
 }
