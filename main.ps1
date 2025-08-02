@@ -299,16 +299,15 @@ if ("sqlengine" -in $Install) {
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
                 $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
 
-                # Load SMO assemblies
+                # Load required assemblies
+                Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Create SQL Server connection
-                $server = New-Object Microsoft.SqlServer.Management.Smo.Server "localhost"
-                if ($SaPassword) {
-                    $server.ConnectionContext.LoginSecure = $false
-                    $server.ConnectionContext.Login = $AdminUsername
-                    $server.ConnectionContext.Password = $catalogPassword
-                }
+                # Create SQL Server connection with simple connection string
+                $connectionString = "Server=localhost;Integrated Security=false;User ID=$AdminUsername;Password=$catalogPassword;Connect Timeout=30;"
+                $server = New-Object Microsoft.SqlServer.Management.Smo.Server
+                $server.ConnectionContext.ConnectionString = $connectionString
+                $server.ConnectionContext.Connect()
 
                 # Create Integration Services object
                 $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $server
