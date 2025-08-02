@@ -303,14 +303,13 @@ if ("sqlengine" -in $Install) {
                 Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Create SQL Server connection with simple connection string
-                $connectionString = "Server=localhost;Integrated Security=false;User ID=$AdminUsername;Password=$catalogPassword;Connect Timeout=30;"
-                $server = New-Object Microsoft.SqlServer.Management.Smo.Server
-                $server.ConnectionContext.ConnectionString = $connectionString
-                $server.ConnectionContext.Connect()
+                # Create SQL Server connection using SqlConnection approach
+                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$catalogPassword;Connect Timeout=30;Application Name=PowerShell"
+                $sqlconnection = New-Object System.Data.SqlClient.SqlConnection $legacyconnstring
+                $null = $sqlconnection.Open()
 
-                # Create Integration Services object
-                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $server
+                # Create Integration Services object using SqlConnection
+                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlconnection
 
                 if ($ssis.Catalogs.Count -gt 0) {
                     Write-Output "SSIS Catalog already exists"
@@ -323,9 +322,15 @@ if ("sqlengine" -in $Install) {
 
                     Write-Output "SSISDB catalog created successfully using SMO"
                 }
+
+                # Close connection
+                $sqlconnection.Close()
             }
             catch {
                 Write-Error "Failed to create SSISDB catalog with SMO: $_"
+                if ($sqlconnection -and $sqlconnection.State -eq 'Open') {
+                    $sqlconnection.Close()
+                }
                 throw
             }
 
