@@ -354,11 +354,36 @@ MOVE 'log' TO N'$logFilePath';
 "@
                 sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$restoreSql" -C
 
-                # Update database master key password to match catalog password
+                # Update or create database master key password to match catalog password
                 Write-Output "Updating database master key password..."
                 $updateMasterKeySql = @"
 USE [SSISDB];
-ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = '$catalogPassword';
+-- Check if master key exists and create/regenerate as needed
+IF NOT EXISTS (SELECT * FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')
+BEGIN
+    CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$catalogPassword';
+    PRINT 'Database master key created successfully.';
+END
+ELSE
+BEGIN
+    -- Try to regenerate the master key with the new password
+    BEGIN TRY
+        ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = '$catalogPassword';
+        PRINT 'Database master key regenerated successfully.';
+    END TRY
+    BEGIN CATCH
+        -- If regeneration fails, try to open and regenerate
+        BEGIN TRY
+            OPEN MASTER KEY DECRYPTION BY PASSWORD = '$catalogPassword';
+            ALTER MASTER KEY REGENERATE WITH ENCRYPTION BY PASSWORD = '$catalogPassword';
+            CLOSE MASTER KEY;
+            PRINT 'Database master key opened and regenerated successfully.';
+        END TRY
+        BEGIN CATCH
+            PRINT 'Warning: Could not regenerate master key. Continuing with existing key.';
+        END CATCH
+    END CATCH
+END
 "@
                 sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$updateMasterKeySql" -C
 
@@ -399,9 +424,8 @@ IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'sp_ssis_startup')
 "@
                 sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$dropProcSql" -C
 
-                # Second batch: Create the procedure
+                # Second batch: Create the procedure (must be in its own batch)
                 $createProcSql = @"
-USE master;
 CREATE PROCEDURE [dbo].[sp_ssis_startup]
 AS
 SET NOCOUNT ON
@@ -413,7 +437,7 @@ SET NOCOUNT ON
     SET @script = N'EXEC [SSISDB].[catalog].[startup]'
     EXECUTE sp_executesql @script;
 "@
-                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$createProcSql" -C
+                sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -d master -Q "$createProcSql" -C
 
                 # Third batch: Enable the startup procedure
                 $enableStartupSql = @"
@@ -424,6 +448,19 @@ EXEC sp_procoption N'sp_ssis_startup', 'startup', 'on';
 
                 # Setup maintenance job for SSIS catalog cleanup
                 Write-Output "Setting up SSIS maintenance job..."
+
+                # Start SQL Server Agent if it's not running
+                try {
+                    $agentService = Get-Service -Name "SQLSERVERAGENT" -ErrorAction SilentlyContinue
+                    if ($agentService -and $agentService.Status -eq "Stopped") {
+                        Write-Output "Starting SQL Server Agent service..."
+                        Start-Service -Name "SQLSERVERAGENT" -ErrorAction SilentlyContinue
+                        Start-Sleep -Seconds 5
+                    }
+                } catch {
+                    Write-Warning "Could not start SQL Server Agent service: $_"
+                }
+
                 $maintenanceJobSql = @"
 USE msdb;
 
