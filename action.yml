@@ -31,7 +31,7 @@ runs:
   using: "composite"
   steps:
     - id: psoutput
-      shell: pwsh
+      shell: ${{ runner.os == 'Windows' && 'powershell' || 'pwsh' }}
       env:
         ACCEPT_EULA: "Y"
         HOMEBREW_ACCEPT_EULA: "Y"
