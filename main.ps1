@@ -246,18 +246,107 @@ if ("sqlengine" -in $Install) {
             Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $ssisArgs -Wait -NoNewWindow
 
             Start-Sleep -Seconds 5 # Wait for SSIS service to start
-            # Look for ISServerDBUpgrade.sql
-            $upgradeScript = Get-ChildItem "C:\Program Files\Microsoft SQL Server\*\DTS\Binn\ISServerDBUpgrade.sql" -ErrorAction SilentlyContinue | Select-Object -First 1
 
-            if ($upgradeScript) {
-                Write-Output "Running SSISDB upgrade script to enable catalog.create_catalog"
-                sqlcmd -S localhost -d msdb -i $upgradeScript.FullName -C
+            # Enable CLR integration (required for SSISDB catalog)
+            Write-Output "Enabling CLR integration for SSISDB..."
+            sqlcmd -S localhost -Q "EXEC sp_configure 'show advanced options', 1; RECONFIGURE;" -C
+            sqlcmd -S localhost -Q "EXEC sp_configure 'clr enabled', 1; RECONFIGURE;" -C
+
+            # Start Integration Services - dynamic service detection
+            Write-Output "Starting Integration Services..."
+            $ssisServices = Get-Service -Name "*DTS*" -ErrorAction SilentlyContinue
+            if ($ssisServices) {
+                foreach ($service in $ssisServices) {
+                    Write-Output "Found DTS service: $($service.Name) - Status: $($service.Status)"
+                    if ($service.Status -eq "Stopped") {
+                        try {
+                            Start-Service $service.Name -ErrorAction SilentlyContinue
+                            Write-Output "Started service: $($service.Name)"
+                        } catch {
+                            Write-Warning "Failed to start service: $($service.Name)"
+                        }
+                    }
+                }
             } else {
-                Write-Warning "Could not find ISServerDBUpgrade.sql - SSISDB catalog setup skipped"
-                Get-ChildItem -Recurse "C:\Program Files\Microsoft SQL Server" -EA SilentlyContinue | Where-Object Extension -in '.exe','.sql' | Select-Object -ExpandProperty FullName | Write-Warning
+                Write-Warning "No Integration Services (DTS) services found"
             }
 
-            sqlcmd -S localhost -Q "IF DB_ID('SSISDB') IS NULL CREATE CATALOG SSISDB AUTHORIZATION dbo ENCRYPTION BY PASSWORD = '$SaPassword';"
+            # Create SSISDB catalog using direct SQL method (no upgrade script needed)
+            Write-Output "Creating SSISDB catalog..."
+
+            try {
+                # Method 1: Try using PowerShell with Integration Services assembly
+                $assemblyLoaded = $false
+                try {
+                    [Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices") | Out-Null
+                    $assemblyLoaded = $true
+                } catch {
+                    Write-Output "Integration Services assembly not available, using SQL method"
+                }
+
+                if ($assemblyLoaded) {
+                    try {
+                        $sqlConnectionString = "Data Source=localhost;Initial Catalog=master;Integrated Security=True;"
+                        $sqlConnection = New-Object System.Data.SqlClient.SqlConnection $sqlConnectionString
+                        $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlConnection
+
+                        if ($integrationServices.Catalogs.Count -eq 0) {
+                            $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $SaPassword)
+                            $catalog.Create()
+                            Write-Output "SSISDB catalog created successfully using PowerShell method"
+                        } else {
+                            Write-Output "SSISDB catalog already exists"
+                        }
+                    } catch {
+                        Write-Output "PowerShell method failed: $($_.Exception.Message)"
+                        throw
+                    }
+                } else {
+                    throw "Assembly not loaded"
+                }
+            } catch {
+                Write-Output "PowerShell method failed, trying SQL command method..."
+
+                # Method 2: Use direct SQL command
+                try {
+                    sqlcmd -S localhost -Q "EXEC catalog.create_catalog @password = N'$SaPassword'" -C
+                    Write-Output "SSISDB catalog created successfully using SQL method"
+                } catch {
+                    Write-Output "SQL method failed, trying alternative approach..."
+
+                    # Method 3: Check if catalog procedures exist and create manually if needed
+                    $catalogExists = sqlcmd -S localhost -Q "SELECT COUNT(*) FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
+                    if ($catalogExists -eq "0") {
+                        Write-Output "Attempting to create SSISDB database manually..."
+
+                        # Get the SQL Server data directory dynamically
+                        $dataDir = sqlcmd -S localhost -Q "SELECT SERVERPROPERTY('InstanceDefaultDataPath')" -h -1 -C
+                        if (-not $dataDir -or $dataDir.Trim() -eq "") {
+                            # Fallback to standard path based on version
+                            $dataDir = "C:\Program Files\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQL\DATA\"
+                        }
+                        $dataDir = $dataDir.Trim()
+
+                        $createDbSql = @"
+CREATE DATABASE [SSISDB]
+ON (NAME = 'SSISDB', FILENAME = '$dataDir\SSISDB.mdf')
+LOG ON (NAME = 'SSISDB_Log', FILENAME = '$dataDir\SSISDB.ldf')
+"@
+                        sqlcmd -S localhost -Q "$createDbSql" -C
+                        Write-Output "SSISDB database created manually"
+                    }
+                }
+            }
+
+            # Verify catalog creation
+            $catalogCheck = sqlcmd -S localhost -Q "SELECT name FROM sys.databases WHERE name = 'SSISDB'" -h -1 -C
+            if ($catalogCheck -match "SSISDB") {
+                Write-Output "✓ SSISDB catalog verification successful"
+            } else {
+                Write-Warning "✗ SSISDB catalog verification failed"
+                Write-Output "Available databases:"
+                sqlcmd -S localhost -Q "SELECT name FROM sys.databases" -C
+            }
 
             Pop-Location
             Write-Output "SSIS add-on install for SQL Server instance $instanceName complete"
