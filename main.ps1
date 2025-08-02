@@ -316,8 +316,11 @@ if ("sqlengine" -in $Install) {
                 $server.ConnectionContext.TrustServerCertificate = $true
                 $server.ConnectionContext.EncryptConnection = $false
 
-                # Create Integration Services object using Server object
-                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $server
+                # Create Integration Services object (parameterless constructor for SMO v16+)
+                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices
+
+                # Set the server connection
+                $ssis.Connection = $server.ConnectionContext
 
                 if ($ssis.Catalogs.Count -gt 0) {
                     Write-Output "SSIS Catalog already exists"
