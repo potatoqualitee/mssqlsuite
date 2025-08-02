@@ -279,14 +279,6 @@ if ("sqlengine" -in $Install) {
                 # Set catalog password - use provided SaPassword or default
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
 
-                # Check if SSISDB already exists
-                Write-Output "Checking if SSISDB catalog already exists..."
-                $dbExists = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT DB_ID('SSISDB')" -h -1 -C
-                if ($dbExists -and $dbExists.Trim() -ne "NULL" -and $dbExists.Trim() -ne "") {
-                    Write-Output "SSISDB catalog already exists"
-                    return
-                }
-
                 # Detect SQL Server version for choosing assembly registration method
                 Write-Output "Detecting SQL Server version..."
                 $sqlVersion = sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "SELECT SERVERPROPERTY('ProductMajorVersion')" -h -1 -C
