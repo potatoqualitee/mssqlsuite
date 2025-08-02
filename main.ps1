@@ -272,243 +272,86 @@ if ("sqlengine" -in $Install) {
             Write-Output "Creating SSISDB catalog using SMO..."
             try {
                 # Load SMO functions
-                function Load-SSISAssemblies {
-                    Write-Output "Loading SMO assemblies..."
+                function Install-DbaTools {
+                    Write-Output "Installing dbatools module for SSISDB catalog creation..."
 
-                    # Strategy 1: Try Add-Type with assembly names (most reliable for CI/CD)
                     try {
-                        Write-Output "Trying Add-Type with assembly names..."
-                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc" -ErrorAction Stop
-                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Common" -ErrorAction Stop
-                        Add-Type -AssemblyName "Microsoft.SqlServer.Smo" -ErrorAction Stop
-                        Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices" -ErrorAction Stop
-
-                        # Test if the type is available
-                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
-                        Write-Output "Assembly loading verified - ServerConnection type found"
-                        return $true
-                    }
-                    catch {
-                        Write-Warning "Add-Type assembly loading failed: $_"
-                    }
-
-                    # Strategy 2: Try LoadWithPartialName (GAC)
-                    try {
-                        Write-Output "Trying GAC loading with LoadWithPartialName..."
-                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Sdk.Sfc")
-                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.Common")
-                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo")
-                        $null = [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Management.IntegrationServices")
-
-                        # Test if the type is available
-                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
-                        Write-Output "GAC loading successful and verified"
-                        return $true
-                    }
-                    catch {
-                        Write-Warning "GAC loading failed: $_"
-                    }
-
-                    # Strategy 3: Dynamic recursive search for assemblies
-                    try {
-                        Write-Output "Searching for SMO assemblies recursively..."
-
-                        # Search common SQL Server installation directories
-                        $searchPaths = @(
-                            "C:\Program Files\Microsoft SQL Server",
-                            "C:\Program Files (x86)\Microsoft SQL Server",
-                            "C:\Program Files\Common Files\Microsoft Shared",
-                            "C:\Program Files (x86)\Common Files\Microsoft Shared"
-                        )
-
-                        foreach ($searchPath in $searchPaths) {
-                            if (Test-Path $searchPath) {
-                                Write-Output "Searching in: $searchPath"
-
-                                # Find the IntegrationServices assembly first
-                                $integrationServicesAssembly = Get-ChildItem -Path $searchPath -Recurse -Filter "Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-                                if ($integrationServicesAssembly) {
-                                    $basePath = $integrationServicesAssembly.DirectoryName
-                                    Write-Output "Found SMO assemblies in: $basePath"
-
-                                    # Check if all required assemblies exist in the same directory
-                                    $requiredAssemblies = @(
-                                        "Microsoft.SqlServer.Management.Sdk.Sfc.dll",
-                                        "Microsoft.SqlServer.Management.Common.dll",
-                                        "Microsoft.SqlServer.Smo.dll",
-                                        "Microsoft.SqlServer.Management.IntegrationServices.dll"
-                                    )
-
-                                    $allAssembliesFound = $true
-                                    foreach ($assembly in $requiredAssemblies) {
-                                        if (-not (Test-Path "$basePath\$assembly")) {
-                                            Write-Warning "Missing assembly: $basePath\$assembly"
-                                            $allAssembliesFound = $false
-                                        }
-                                    }
-
-                                    if ($allAssembliesFound) {
-                                        Write-Output "Loading assemblies from: $basePath"
-
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
-
-                                        # Test if the type is available
-                                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
-                                        Write-Output "Dynamic search successful! Assemblies loaded from: $basePath"
-                                        return $true
-                                    }
-                                }
-                            }
+                        # Set PSGallery as trusted to avoid prompts
+                        if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
+                            Write-Output "Setting PSGallery as trusted..."
+                            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
                         }
 
-                        # If not found in common locations, search entire Program Files
-                        Write-Output "Searching entire Program Files directories..."
-                        $programFilesPaths = @("C:\Program Files", "C:\Program Files (x86)")
+                        # Install specific version of dbatools
+                        $requiredVersion = "2.1.32"
+                        Write-Output "Installing dbatools version $requiredVersion..."
 
-                        foreach ($programPath in $programFilesPaths) {
-                            if (Test-Path $programPath) {
-                                $integrationServicesAssembly = Get-ChildItem -Path $programPath -Recurse -Filter "Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+                        # Check if the correct version is already installed
+                        $installedModule = Get-Module -ListAvailable -Name dbatools | Where-Object { $_.Version -eq $requiredVersion }
 
-                                if ($integrationServicesAssembly) {
-                                    $basePath = $integrationServicesAssembly.DirectoryName
-                                    Write-Output "Found assemblies in Program Files at: $basePath"
-
-                                    try {
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction SilentlyContinue
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.Common.dll" -ErrorAction Stop
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Smo.dll" -ErrorAction SilentlyContinue
-                                        Add-Type -Path "$basePath\Microsoft.SqlServer.Management.IntegrationServices.dll" -ErrorAction Stop
-
-                                        # Test if the type is available
-                                        $testType = [Microsoft.SqlServer.Management.Common.ServerConnection]
-                                        Write-Output "Full system search successful! Assemblies loaded from: $basePath"
-                                        return $true
-                                    }
-                                    catch {
-                                        Write-Warning "Failed to load from found path: $basePath - $_"
-                                        continue
-                                    }
-                                }
-                            }
-                        }
-
-                        throw "No SMO assemblies found anywhere on the system"
-                    }
-                    catch {
-                        Write-Warning "Dynamic assembly search failed: $_"
-                    }
-
-                    Write-Error "All assembly loading strategies failed. SMO assemblies not available on this system."
-                    return $false
-                }
-
-                function Get-SqlServerVersion {
-                    param(
-                        [string]$ServerName = "localhost",
-                        [System.Management.Automation.PSCredential]$SqlCredential = $null
-                    )
-
-                    try {
-                        if ($SqlCredential) {
-                            $connectionString = "Server=$ServerName;User Id=$($SqlCredential.UserName);Password=$($SqlCredential.GetNetworkCredential().Password);TrustServerCertificate=True"
+                        if ($installedModule) {
+                            Write-Output "dbatools version $requiredVersion is already installed"
                         } else {
-                            $connectionString = "Server=$ServerName;Integrated Security=True;TrustServerCertificate=True"
+                            Install-Module -Name dbatools -RequiredVersion $requiredVersion -Force -Scope CurrentUser -AllowClobber
+                            Write-Output "Successfully installed dbatools version $requiredVersion"
                         }
 
-                        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-                        $connection.Open()
+                        # Import the module
+                        Write-Output "Importing dbatools module..."
+                        Import-Module dbatools -Force
 
-                        $command = $connection.CreateCommand()
-                        $command.CommandText = "SELECT SERVERPROPERTY('ProductMajorVersion') AS MajorVersion"
-                        $result = $command.ExecuteScalar()
-
-                        $connection.Close()
-                        return [int]$result
-                    }
-                    catch {
-                        Write-Warning "Could not detect SQL Server version: $_"
-                        return $versionMajor  # Use the version from the main script
-                    }
-                }
-
-                function New-SSISCatalogUsingSMO {
-                    param(
-                        [string]$ServerName = "localhost",
-                        [string]$CatalogPassword,
-                        [System.Management.Automation.PSCredential]$SqlCredential = $null,
-                        [int]$SqlVersionMajor = 16
-                    )
-
-                    if (-not (Load-SSISAssemblies -SqlVersionMajor $SqlVersionMajor)) {
-                        throw "Failed to load SSIS SMO assemblies"
-                    }
-
-                    try {
-                        $serverConnection = New-Object Microsoft.SqlServer.Management.Common.ServerConnection($ServerName)
-
-                        if ($SqlCredential) {
-                            $serverConnection.LoginSecure = $false
-                            $serverConnection.Login = $SqlCredential.UserName
-                            $serverConnection.SecurePassword = $SqlCredential.Password
-                        } else {
-                            $serverConnection.LoginSecure = $true
-                        }
-
-                        $smoServer = New-Object Microsoft.SqlServer.Management.Smo.Server($serverConnection)
-                        $smoServer.ConnectionContext.Connect()
-                        Write-Output "Connected to SQL Server: $($smoServer.Name) (Version: $($smoServer.Version))"
-
-                        $integrationServices = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices($smoServer)
-
-                        if ($integrationServices.Catalogs.Contains("SSISDB")) {
-                            Write-Warning "SSISDB catalog already exists"
+                        # Verify the module is loaded
+                        $loadedModule = Get-Module -Name dbatools
+                        if ($loadedModule) {
+                            Write-Output "dbatools module loaded successfully (Version: $($loadedModule.Version))"
                             return $true
+                        } else {
+                            throw "Failed to load dbatools module"
                         }
-
-                        Write-Output "Creating SSISDB catalog..."
-
-                        if (-not $CatalogPassword) {
-                            $CatalogPassword = "dbatools.I0"
-                            Write-Warning "No catalog password specified, using default"
-                        }
-
-                        $catalog = New-Object Microsoft.SqlServer.Management.IntegrationServices.Catalog($integrationServices, "SSISDB", $CatalogPassword)
-                        $catalog.Create()
-
-                        Write-Output "SSISDB catalog created successfully"
-                        return $true
                     }
                     catch {
-                        Write-Error "Failed to create SSISDB catalog: $_"
+                        Write-Error "Failed to install/import dbatools: $_"
                         return $false
                     }
-                    finally {
-                        if ($smoServer -and $smoServer.ConnectionContext.IsOpen) {
-                            $smoServer.ConnectionContext.Disconnect()
-                        }
+                }
+
+                # Create SSISDB catalog using dbatools
+                Write-Output "Creating SSISDB catalog using dbatools..."
+
+                try {
+                    # Set catalog password - use provided SaPassword or default
+                    $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
+                    if (-not $SaPassword) {
+                        Write-Warning "No SA password provided, using default catalog password"
+                    }
+
+                    # Build connection parameters
+                    $connectionParams = @{
+                        SqlInstance = "localhost"
+                        CatalogPassword = $catalogPassword
+                        EnableClr = $true
+                        Force = $true
+                    }
+
+                    # Add SQL credentials if SA password is provided
+                    if ($SaPassword) {
+                        $securePassword = ConvertTo-SecureString $SaPassword -AsPlainText -Force
+                        $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
+                        $connectionParams.SqlCredential = $sqlCredential
+                    }
+
+                    # Create the SSISDB catalog
+                    $result = New-DbaDbSsisCatalog @connectionParams
+
+                    if ($result) {
+                        Write-Output "SSISDB catalog created successfully using dbatools"
+                    } else {
+                        throw "New-DbaDbSsisCatalog returned null/empty result"
                     }
                 }
-
-                # Detect SQL Server version
-                $detectedVersion = Get-SqlServerVersion -ServerName "localhost"
-                Write-Output "Detected SQL Server version: $detectedVersion"
-
-                # Create credentials if needed
-                $sqlCredential = $null
-                if ($SaPassword) {
-                    $securePassword = ConvertTo-SecureString $SaPassword -AsPlainText -Force
-                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
-                }
-
-                # Create SSISDB catalog using SMO
-                $success = New-SSISCatalogUsingSMO -ServerName "localhost" -CatalogPassword $SaPassword -SqlCredential $sqlCredential -SqlVersionMajor $detectedVersion
-
-                if (-not $success) {
-                    throw "SSISDB catalog creation failed"
+                catch {
+                    Write-Error "Failed to create SSISDB catalog with dbatools: $_"
+                    throw
                 }
 
                 Write-Output "SSISDB catalog creation completed successfully."
