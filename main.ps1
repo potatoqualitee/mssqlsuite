@@ -308,13 +308,16 @@ if ("sqlengine" -in $Install) {
                 Add-Type -AssemblyName "Microsoft.SqlServer.Smo"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
-                # Create SQL Server connection with encryption settings
-                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$SaPassword;Connect Timeout=30;Application Name=PowerShell;TrustServerCertificate=true;Encrypt=false"
-                $sqlconnection = New-Object System.Data.SqlClient.SqlConnection $legacyconnstring
-                $null = $sqlconnection.Open()
+                # Create Server object directly (avoids connection type mismatch in SMO v16+)
+                $server = New-Object Microsoft.SqlServer.Management.Smo.Server "localhost"
+                $server.ConnectionContext.LoginSecure = $false
+                $server.ConnectionContext.Login = $AdminUsername
+                $server.ConnectionContext.Password = $SaPassword
+                $server.ConnectionContext.TrustServerCertificate = $true
+                $server.ConnectionContext.EncryptConnection = $false
 
-                # Create Integration Services object using SqlConnection
-                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $sqlconnection
+                # Create Integration Services object using Server object
+                $ssis = New-Object Microsoft.SqlServer.Management.IntegrationServices.IntegrationServices $server
 
                 if ($ssis.Catalogs.Count -gt 0) {
                     Write-Output "SSIS Catalog already exists"
@@ -329,7 +332,7 @@ if ("sqlengine" -in $Install) {
                 }
 
                 # Close connection
-                $sqlconnection.Close()
+                $server.ConnectionContext.Disconnect()
             }
             catch {
 
