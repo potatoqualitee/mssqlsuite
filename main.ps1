@@ -294,18 +294,19 @@ if ("sqlengine" -in $Install) {
                 $catalogPassword = if ($SaPassword) { $SaPassword } else { "dbatools.I0" }
                 $securePassword = ConvertTo-SecureString $catalogPassword -AsPlainText -Force
 
-                if (-not $SaPassword) {
-                    Write-Warning "No SA password provided, using default catalog password"
-                } else {
-                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
-                    $connectionParams.SqlCredential = $sqlCredential
-                }
 
                 # Build connection parameters
                 $connectionParams = @{
                     SqlInstance = "localhost"
                     SecurePassword = $catalogPassword
-                    SqlCredential = $sqlcredential
+                    SqlCredential = $null
+                }
+
+                if (-not $SaPassword) {
+                    Write-Warning "No SA password provided, using default catalog password"
+                } else {
+                    $sqlCredential = New-Object System.Management.Automation.PSCredential($AdminUsername, $securePassword)
+                    $connectionParams.SqlCredential = $sqlCredential
                 }
 
                 # Create the SSISDB catalog
