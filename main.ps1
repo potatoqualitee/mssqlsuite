@@ -336,9 +336,17 @@ if ("sqlengine" -in $Install) {
 
                 # Restore SSISDB from backup
                 Write-Output "Restoring SSISDB from backup..."
+
+                # Get the parent directory of the backup file for placing restored files
+                $backupParentDir = Split-Path -Parent $ssisdbBackup
+                $dataFilePath = Join-Path $backupParentDir "SSISDB.mdf"
+                $logFilePath = Join-Path $backupParentDir "SSISDB.ldf"
+
                 $restoreSql = @"
 RESTORE DATABASE [SSISDB] FROM DISK = N'$ssisdbBackup'
-WITH FILE = 1, NOUNLOAD, REPLACE, STATS = 5;
+WITH FILE = 1, NOUNLOAD, REPLACE, STATS = 5,
+MOVE 'data' TO N'$dataFilePath',
+MOVE 'log' TO N'$logFilePath';
 "@
                 sqlcmd -S localhost -U $AdminUsername -P "$SaPassword" -Q "$restoreSql" -C
 
