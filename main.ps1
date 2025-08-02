@@ -304,7 +304,7 @@ if ("sqlengine" -in $Install) {
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.IntegrationServices"
 
                 # Create SQL Server connection using SqlConnection approach
-                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$catalogPassword;Connect Timeout=30;Application Name=PowerShell"
+                $legacyconnstring = "Server=localhost;User ID=$AdminUsername;Password=$SaPassword;Connect Timeout=30;Application Name=PowerShell"
                 $sqlconnection = New-Object System.Data.SqlClient.SqlConnection $legacyconnstring
                 $null = $sqlconnection.Open()
 
