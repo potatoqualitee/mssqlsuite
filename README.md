@@ -49,7 +49,7 @@ None
 | Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
 | sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~20s |
 | Full-Text Search | fulltext | Windows | Enabled during SQL Engine install | ~1m |
-| SSIS (Integration Services) | ssis | Windows | Installs SQL Server Integration Services and creates the SSISDB catalog | ~2m |
+| SSIS (Integration Services) | ssis | Windows | Installs SQL Server Integration Services and creates the SSISDB catalog | ~2.5m |
 | SQL Engine | sqlengine | macOS | Docker container with SQL Server 2022 accessible at `localhost`. | ~7m |
 | SqlLocalDB | localdb | macOS | Not supported | N/A |
 | Client Tools | sqlclient | macOS | Includes bcp and odbc drivers | ~20s |
