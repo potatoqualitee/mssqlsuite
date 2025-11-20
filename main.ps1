@@ -37,8 +37,10 @@ if ($islinux) {
 
 if ($ismacos) {
     Write-Output "Installing sqlcmd on macOS"
-    brew update
-    brew install sqlcmd
+    # Install mssql-tools18 directly to avoid conflicts with go-sqlcmd from homebrew core
+    # and to avoid slow/hanging brew update operations
+    brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+    brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
 }
 
 if ($iswindows) {
@@ -521,12 +523,10 @@ if ("sqlclient" -in $Install) {
     $log = ""
 
     if ($ismacos) {
-        brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
-        #$null = brew update
-        brew uninstall sqlcmd
-        $log = brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
-
+        # mssql-tools18 is already installed during initial sqlcmd installation
+        # Just ensure the PATH is set
         echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
+        Write-Output "mssql-tools18 already installed, PATH updated"
     }
 
     if ($islinux) {
