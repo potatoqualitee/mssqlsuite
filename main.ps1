@@ -37,10 +37,23 @@ if ($islinux) {
 
 if ($ismacos) {
     Write-Output "Installing sqlcmd on macOS"
-    # Install mssql-tools18 directly to avoid conflicts with go-sqlcmd from homebrew core
-    # and to avoid slow/hanging brew update operations
-    brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
-    brew install microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18
+    # Download go-sqlcmd directly from GitHub releases to avoid Homebrew timeout issues
+    # Use arm64 for Apple Silicon (GitHub Actions macOS runners use ARM64)
+    $sqlcmdVersion = "v1.8.2"
+    $sqlcmdUrl = "https://github.com/microsoft/go-sqlcmd/releases/download/$sqlcmdVersion/sqlcmd-darwin-arm64.tar.bz2"
+
+    Write-Output "Downloading sqlcmd $sqlcmdVersion from GitHub releases..."
+    curl -L $sqlcmdUrl -o /tmp/sqlcmd.tar.bz2
+
+    Write-Output "Extracting sqlcmd..."
+    tar -xjf /tmp/sqlcmd.tar.bz2 -C /tmp
+
+    Write-Output "Installing sqlcmd to /usr/local/bin..."
+    sudo mv /tmp/sqlcmd /usr/local/bin/sqlcmd
+    sudo chmod +x /usr/local/bin/sqlcmd
+
+    Write-Output "Verifying sqlcmd installation..."
+    sqlcmd --version
 }
 
 if ($iswindows) {
@@ -523,10 +536,28 @@ if ("sqlclient" -in $Install) {
     $log = ""
 
     if ($ismacos) {
-        # mssql-tools18 is already installed during initial sqlcmd installation
-        # Just ensure the PATH is set
-        echo "/opt/homebrew/bin" >> $env:GITHUB_PATH
-        Write-Output "mssql-tools18 already installed, PATH updated"
+        Write-Output "Installing ODBC-based mssql-tools18 on macOS"
+        Write-Output "Note: go-sqlcmd is already available from initial installation"
+
+        # Microsoft only distributes ODBC tools via Homebrew for macOS
+        # Use optimized settings to avoid timeouts
+        try {
+            Write-Output "Tapping microsoft/mssql-release..."
+            bash -c "brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release"
+
+            Write-Output "Installing ODBC driver and tools (this may take a few minutes)..."
+            # Install without auto-update (already set via HOMEBREW_NO_AUTO_UPDATE env var)
+            bash -c "brew install --quiet microsoft/mssql-release/msodbcsql18 microsoft/mssql-release/mssql-tools18"
+
+            Write-Output "Adding mssql-tools18 to PATH..."
+            echo "/opt/mssql-tools18/bin" >> $env:GITHUB_PATH
+
+            Write-Output "mssql-tools18 installation completed"
+        }
+        catch {
+            Write-Warning "Failed to install mssql-tools18 via Homebrew: $_"
+            Write-Warning "go-sqlcmd is still available as the sqlcmd implementation"
+        }
     }
 
     if ($islinux) {
