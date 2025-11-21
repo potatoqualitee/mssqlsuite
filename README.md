@@ -33,7 +33,9 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 
 None
 
-**Note:** The `ssis` option is only supported on Windows runners. When specified, the action will ensure the SSISDB catalog exists (creating it if necessary).
+**Notes:**
+- The `ssis` option is only supported on Windows runners. When specified, the action will ensure the SSISDB catalog exists (creating it if necessary).
+- **macOS Support Temporarily Disabled:** macOS runners are currently disabled in CI/CD due to Homebrew timeout issues with Docker/Colima installations. This may be re-enabled in the future once the underlying issues are resolved.
 
 ### Details
 

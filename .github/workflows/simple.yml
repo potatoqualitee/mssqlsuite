@@ -20,6 +20,8 @@ jobs:
               version: "2016"
             - os: macOS-latest
               version: "2019"
+            - os: macOS-latest
+              version: "2022"
 
     steps:
       - uses: actions/checkout@v4
