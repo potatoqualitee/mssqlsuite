@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        version: ["2019", "2022", "2017", "2016"]
+        version: ["2025", "2019", "2022", "2017", "2016"]
         exclude:
             - os: ubuntu-latest
               version: "2017"
@@ -24,6 +24,8 @@ jobs:
               version: "2019"
             - os: macOS-latest
               version: "2022"
+            - os: macOS-latest
+              version: "2025"
 
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +55,7 @@ jobs:
         uses: ./
         with:
           install: localdb
+          version: ${{ matrix.version }}
           show-log: true
 
       - name: Run sqlcmd
