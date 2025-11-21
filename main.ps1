@@ -89,13 +89,28 @@ if ("sqlengine" -in $Install) {
         }
 
         docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d $img
-        Write-Output "Waiting for docker to start"
+        Write-Output "Waiting for SQL Server to start..."
 
-        # MacOS takes longer to start using qemu
-        if ($ismacos) {
-            Start-Sleep -Seconds 90
-        } else {
-            Start-Sleep -Seconds 10
+        # Try to connect to SQL Server in a loop instead of fixed sleep
+        # This allows faster success or additional time if needed (especially on macOS with qemu)
+        $TryLimit = 18 # At least 3 minute maximum wait with 10 second delay between retries
+        for ($i = 1; $i -le $TryLimit; $i++) {
+            try {
+                Write-Output "Testing connection to SQL Server (Try $i of $TryLimit)"
+                $ErrorOut = sqlcmd -S localhost -U sa -P "$SaPassword" -Q "SELECT @@VERSION" -C -l 15 2>&1
+                if ($LASTEXITCODE -ne 0) {
+                    throw "sqlcmd failed with exit code $LASTEXITCODE"
+                }
+                Write-Output "Connection to SQL Server succeeded"
+                break
+            } catch {
+                if ($i -eq $TryLimit) {
+                    # We are done trying, display the suppressed error
+                    Write-Error "Timeout waiting for SQL Server to become available - $ErrorOut"
+                } else {
+                    Start-Sleep -Seconds 10
+                }
+            }
         }
 
         if ($ShowLog) {
