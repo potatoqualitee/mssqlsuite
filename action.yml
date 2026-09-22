@@ -23,6 +23,17 @@ inputs:
     description: "Change the collation associated with the SQL Server instance"
     required: false
     default: "SQL_Latin1_General_CP1_CI_AS"
+  edition:
+    description: "SQL Server edition to install (Developer by default)"
+    required: false
+    default: "Developer"
+  product-key:
+    description: "Product key for a paid SQL Server edition on Windows"
+    required: false
+  disable-telemetry:
+    description: "Disable SQL Server CEIP telemetry where the edition supports opting out"
+    required: false
+    default: "false"
   version:
     description: "The version of SQL Server to install in year format"
     required: false
@@ -38,6 +49,9 @@ runs:
         HOMEBREW_NO_INSTALL_CLEANUP: "Y"
         SA_PASSWORD: ${{ inputs.sa-password }}
         MSSQL_AGENT_ENABLED: "true"
+        INPUT_EDITION: ${{ inputs.edition }}
+        INPUT_PRODUCT_KEY: ${{ inputs.product-key }}
+        INPUT_DISABLE_TELEMETRY: ${{ inputs.disable-telemetry }}
       run: |
         Write-Output "Getting variables for suite"
 
@@ -48,6 +62,9 @@ runs:
             ShowLog         = ("${{ inputs.show-log }}" -ieq "true")
             Collation       = "${{ inputs.Collation }}"
             Version         = "${{ inputs.Version }}"
+            Edition         = $env:INPUT_EDITION
+            ProductKey      = $env:INPUT_PRODUCT_KEY
+            DisableTelemetry = ($env:INPUT_DISABLE_TELEMETRY -ieq "true")
         }
 
         ${{ github.action_path }}/main.ps1 @params

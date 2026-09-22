@@ -26,8 +26,23 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `admin-username` - The admin username for the SQL instance. The default is `sa`. When specified, the built-in `sa` user will be renamed to this username
 * `collation` - Change the collation associated with the SQL Server instance
-* `version` - The version of SQL Server to install in year format. Options are 2019 and 2022 (defaults to 2022)
+* `version` - The version of SQL Server to install in year format. Options are 2016, 2017, 2019, 2022, and 2025 (defaults to 2022)
 * `show-log` - Show logs, including docker logs, for troubleshooting
+* `edition` - SQL Server edition to install. Defaults to `Developer`. Linux and macOS containers accept `Developer`, `Evaluation`, `Express`, `Web`, `Standard`, `Enterprise`, `EnterpriseCore`, and (with SQL Server 2025) `StandardDeveloper`. Windows uses Developer media by default; paid editions require `product-key`. Evaluation, Express, and StandardDeveloper are not supported by the current Windows media.
+* `product-key` - Product key for a paid Windows edition. Supply it from a GitHub Actions secret. It is passed to SQL Server setup as `/PID`.
+* `disable-telemetry` - Set to `true` to request CEIP telemetry opt-out. Defaults to `false`. Developer, Express, and StandardDeveloper editions do not permit opt-out and will be rejected. On Windows, the CEIP service remains installed and running; the action sets the supported CustomerFeedback opt-out registry value.
+
+For example, to run a Standard edition container without CEIP telemetry:
+
+```yaml
+- uses: potatoqualitee/mssqlsuite@v1.11
+  with:
+    install: sqlengine
+    edition: Standard
+    disable-telemetry: true
+```
+
+For a paid Windows installation, set `edition: Standard` and `product-key: ${{ secrets.SQL_SERVER_PRODUCT_KEY }}`. The key must match the selected edition and version. The runner must have a license for that edition.
 
 ### Outputs
 

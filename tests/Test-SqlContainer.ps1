@@ -127,6 +127,45 @@ try {
         }
     }
     Write-Output "All 24 container startup regression cases passed."
+    foreach ($case in @(
+        @{ Edition = "Developer"; DisableTelemetry = $false; ExpectedPid = "Developer"; ExpectConfig = $false; Error = $null },
+        @{ Edition = "Standard"; DisableTelemetry = $false; ExpectedPid = "Standard"; ExpectConfig = $false; Error = $null },
+        @{ Edition = "Standard"; DisableTelemetry = $true; ExpectedPid = "Standard"; ExpectConfig = $true; Error = $null },
+        @{ Edition = "Developer"; DisableTelemetry = $true; ExpectedPid = $null; ExpectConfig = $false; Error = "cannot be disabled.*Developer" }
+    )) {
+        $global:MssqlSuiteTestState = @{
+            Scenario = "Success"
+            Calls = [System.Collections.Generic.List[string]]::new()
+            Attempts = 0
+            BuildContext = $null
+        }
+        $failure = $null
+        try {
+            & "$root/Start-SqlContainer.ps1" -Version 2022 -SaPassword "test-password" -Edition $case.Edition -DisableTelemetry:$case.DisableTelemetry -TryLimit 1 -RetryDelaySeconds 0 | Out-Null
+        } catch {
+            $failure = $_.Exception.Message
+        }
+        $runCall = @($global:MssqlSuiteTestState.Calls | Where-Object { $_ -like "run *" }) | Select-Object -First 1
+        if ($case.Error) {
+            Assert-True ($failure -match $case.Error) "Expected unsupported telemetry error for $($case.Edition): $failure"
+            Assert-True ($null -eq $runCall) "Unsupported telemetry request started a container"
+            continue
+        }
+        Assert-True ($null -eq $failure) "Container setup failed for $($case.Edition): $failure"
+        Assert-True ($runCall -match "MSSQL_PID=$($case.ExpectedPid)(\s|$)") "Container did not receive the requested edition: $runCall"
+        $configMount = @($runCall -split ' ' | Where-Object { $_ -like 'type=bind,source=*' }) | Select-Object -First 1
+        Assert-True (($null -ne $configMount) -eq $case.ExpectConfig) "Unexpected telemetry configuration mount: $runCall"
+        if ($case.ExpectConfig) {
+            Assert-True ($configMount -like '*,target=/var/opt/mssql/mssql.conf,readonly') "Telemetry configuration must be mounted as a read-only file"
+            $configFile = ($configMount -replace '^type=bind,source=', '') -replace ',target=/var/opt/mssql/mssql.conf,readonly$', ''
+            Assert-True ((Get-Content $configFile -Raw) -match '(?s)\[telemetry\]\s+customerfeedback = false') "Telemetry configuration was not written before container startup"
+            $configDir = (Resolve-Path -LiteralPath (Split-Path $configFile -Parent)).Path
+            $tempRoot = (Resolve-Path -LiteralPath $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() })).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+            Assert-True ($configDir.StartsWith("$tempRoot$([IO.Path]::DirectorySeparatorChar)mssqlsuite-", [StringComparison]::OrdinalIgnoreCase)) "Refusing to remove an unexpected test directory: $configDir"
+            Remove-Item -LiteralPath $configDir -Recurse -Force
+        }
+        Write-Output "PASS: edition $($case.Edition), telemetry disabled $($case.DisableTelemetry)"
+    }
 } finally {
     $ErrorActionPreference = "Stop"
     Remove-Variable MssqlSuiteTestState -Scope Global -ErrorAction SilentlyContinue
