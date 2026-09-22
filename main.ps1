@@ -226,7 +226,7 @@ if ("sqlengine" -in $Install) {
                     Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
                 }
                 if (-not (Test-Path "sqlsetup.box")) {
-                    Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.box
+                    Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
                 }
             }
 
