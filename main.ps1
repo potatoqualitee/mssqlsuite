@@ -80,43 +80,7 @@ if ("sqlengine" -in $Install) {
 
     if ($ismacos -or $islinux) {
         Write-Output "linux/mac detected, downloading the docker container"
-
-        if ("fulltext" -in $Install) {
-            docker build -f $PSScriptRoot/Dockerfile-$Version -t mssql-fulltext .
-            $img = "mssql-fulltext"
-        } else {
-            $img = "mcr.microsoft.com/mssql/server:$Version-latest"
-        }
-
-        docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d $img
-        Write-Output "Waiting for SQL Server to start..."
-
-        # Try to connect to SQL Server in a loop instead of fixed sleep
-        # This allows faster success or additional time if needed (especially on macOS with qemu)
-        $TryLimit = 18 # At least 3 minute maximum wait with 10 second delay between retries
-        for ($i = 1; $i -le $TryLimit; $i++) {
-            try {
-                Write-Output "Testing connection to SQL Server (Try $i of $TryLimit)"
-                $ErrorOut = sqlcmd -S localhost -U sa -P "$SaPassword" -Q "SELECT @@VERSION" -C -l 15 2>&1
-                if ($LASTEXITCODE -ne 0) {
-                    throw "sqlcmd failed with exit code $LASTEXITCODE"
-                }
-                Write-Output "Connection to SQL Server succeeded"
-                break
-            } catch {
-                if ($i -eq $TryLimit) {
-                    # We are done trying, display the suppressed error
-                    Write-Error "Timeout waiting for SQL Server to become available - $ErrorOut"
-                } else {
-                    Start-Sleep -Seconds 10
-                }
-            }
-        }
-
-        if ($ShowLog) {
-            docker ps -a
-            docker logs -t sql
-        }
+        & "$PSScriptRoot/Start-SqlContainer.ps1" -Version $Version -SaPassword $SaPassword -Collation $Collation -FullText:("fulltext" -in $Install) -ShowLog:$ShowLog
 
         # Rename sa user if custom admin username is specified
         if ($AdminUsername -ne "sa") {
@@ -262,7 +226,7 @@ if ("sqlengine" -in $Install) {
                     Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
                 }
                 if (-not (Test-Path "sqlsetup.box")) {
-                    Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
+                    Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.box
                 }
             }
 

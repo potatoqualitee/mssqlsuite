@@ -2,15 +2,24 @@ FROM mcr.microsoft.com/mssql/server:2025-latest
 
 USER root
 
-RUN apt-get update && \
-    apt-get install -yq gnupg gnupg2 gnupg1 curl apt-transport-https && \
-    curl https://packages.microsoft.com/keys/microsoft.asc -o /var/opt/mssql/ms-key.cer && \
-    apt-key add /var/opt/mssql/ms-key.cer && \
-    curl https://packages.microsoft.com/config/ubuntu/22.04/mssql-server-2025.list -o /etc/apt/sources.list.d/mssql-server-2025.list && \
-    apt-get update && \
-    apt-get install -y mssql-server-fts && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists
+# Match the package repository to the container, not to the GitHub runner.
+# Mixing Jammy SQL binaries with a Noble base can leave shared libraries missing.
+RUN set -eu; \
+    . /etc/os-release; \
+    test "$ID" = "ubuntu"; \
+    case "$VERSION_ID" in 22.04|24.04) ;; *) echo "Unsupported SQL 2025 container OS: $VERSION_ID" >&2; exit 1 ;; esac; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc -o /tmp/microsoft.asc; \
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/mssqlsuite-microsoft.gpg /tmp/microsoft.asc; \
+    printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/mssqlsuite-microsoft.gpg] https://packages.microsoft.com/ubuntu/%s/mssql-server-2025 %s main\n' "$VERSION_ID" "$VERSION_CODENAME" > /etc/apt/sources.list.d/mssql-server-2025.list; \
+    apt-get update; \
+    server_version="$(apt-cache policy mssql-server | awk '/Candidate:/ { print $2 }')"; \
+    test -n "$server_version"; \
+    test "$server_version" != '(none)'; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "mssql-server=$server_version" "mssql-server-fts=$server_version"; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/microsoft.asc
 
 EXPOSE 1433
 USER mssql
