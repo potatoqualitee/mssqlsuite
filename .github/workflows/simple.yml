@@ -1,4 +1,15 @@
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-everywhere:
@@ -52,3 +63,11 @@ jobs:
         shell: pwsh
         run: |
           ./Test-SSISCatalog -UserName sa -Password dbatools.I0
+
+      - name: Show SQL container diagnostics on failure
+        if: failure() && runner.os != 'Windows'
+        shell: bash
+        run: |
+          docker ps -a || true
+          docker inspect sql --format '{{json .State}}' || true
+          docker logs --timestamps sql || true
