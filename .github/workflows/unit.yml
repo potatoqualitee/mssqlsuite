@@ -1,0 +1,24 @@
+name: Container startup regression tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  container-startup:
+    name: Test container startup error handling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell and test startup failures
+        shell: pwsh
+        run: ./tests/Test-SqlContainer.ps1
