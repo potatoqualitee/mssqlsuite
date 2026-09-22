@@ -140,12 +140,12 @@ if ("sqlengine" -in $Install) {
         $ProgressPreference = "SilentlyContinue"
         switch ($Version) {
             "2016" {
-                $exeUri = "https://download.microsoft.com/download/C/5/0/C50D5F5E-1ADF-43EB-BF16-205F7EAB1944/SQLServer2016-SSEI-Dev.exe"
-                $boxUri = ""
+                $exeUri = "https://download.microsoft.com/download/f/9/8/f982347c-fee3-4b3e-a8dc-c95383aa3020/sql16_sp3_dlc/en-us/SQLServer2016SP3-FullSlipstream-DEV-x64-ENU.exe"
+                $boxUri = "https://download.microsoft.com/download/f/9/8/f982347c-fee3-4b3e-a8dc-c95383aa3020/sql16_sp3_dlc/en-us/SQLServer2016SP3-FullSlipstream-DEV-x64-ENU.box"
                 $versionMajor = 13
             }
             "2017" {
-                $exeUri = "https://download.microsoft.com/download/5/A/7/5A7065A2-C81C-4A31-9972-8A31AC9388C1/SQLServer2017-SSEI-Dev.exe"
+                $exeUri = "https://go.microsoft.com/fwlink/?linkid=853016"
                 $boxUri = ""
                 $versionMajor = 14
             }
@@ -189,7 +189,7 @@ if ("sqlengine" -in $Install) {
         Write-Warning "INSTALL ARGS: $installArgs"
 
         if ($boxUri -eq "") {
-            # For 2016, 2017 & 2025.
+            # For 2017 & 2025.
             # Download the small setup utility that allows us to download the full installation media
             Invoke-WebRequest -Uri $exeUri -OutFile c:\temp\downloadsetup.exe
             # Use the small setup utility to download the full installation media (*.box and *.exe) files to c:\temp
@@ -198,10 +198,11 @@ if ("sqlengine" -in $Install) {
             Get-ChildItem -Name "SQLServer*.box" | Rename-Item -NewName "sqlsetup.box"
             Get-ChildItem -Name "SQLServer*.exe" | Rename-Item -NewName "sqlsetup.exe"
         } else {
-            # For 2019 & 2022
+            # For 2016, 2019 & 2022
             Invoke-WebRequest -Uri $exeUri -OutFile sqlsetup.exe
             Invoke-WebRequest -Uri $boxUri -OutFile sqlsetup.box
-            # Add argument here as it's not supported on older versions
+        }
+        if ($versionMajor -ge 15) {
             $installArgs += "/USESQLRECOMMENDEDMEMORYLIMITS"
         }
         # Extracts media
