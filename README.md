@@ -5,28 +5,28 @@ This GitHub Action automatically installs a SQL Server suite of tools including 
 
 ## Documentation
 
-Just copy the code below and modify the line **`install: sqlengine, sqlclient, sqlpackage, localdb, fulltext`** with the options you need.
+Add this step to a workflow and adjust `install` for the tools you need. For a Linux runner, this step installs SQL Server 2022, the default version:
 
 ```yaml
     - name: Install a SQL Server suite of tools
-      uses: potatoqualitee/mssqlsuite@v1.11
+      uses: potatoqualitee/mssqlsuite@v2
       with:
-        install: sqlengine, sqlclient, sqlpackage, localdb, fulltext, ssis
+        install: sqlengine, sqlpackage
 ```
 
 ## Usage
 
-### Pre-requisites
+### Prerequisites
 
-Create a workflow `.yml` file in your repositories `.github/workflows` directory. An [example workflow](#example-workflow) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
+Create a workflow `.yml` file in your repository's `.github/workflows` directory. [Example workflows](#example-workflows) are available below. For more information, see GitHub's [workflow documentation](https://docs.github.com/en/actions/get-started/quickstart).
 
 ### Inputs
 
-* `install` - The apps to install. Options include: `sqlengine`, `sqlclient`, `sqlpackage`, `localdb`, `fulltext`, and `ssis`
+* `install` - The tools to install: `sqlengine`, `sqlclient`, `sqlpackage`, `localdb`, `fulltext`, and `ssis`. `localdb` and `ssis` are Windows-only.
 * `sa-password` - The sa password for the SQL instance. The default is `dbatools.I0`
 * `admin-username` - The admin username for the SQL instance. The default is `sa`. When specified, the built-in `sa` user will be renamed to this username
 * `collation` - Change the collation associated with the SQL Server instance
-* `version` - The version of SQL Server to install in year format. Options are 2016, 2017, 2019, 2022, and 2025 (defaults to 2022)
+* `version` - The SQL Server version in year format. Defaults to `2022`; set `version: 2025` to install SQL Server 2025. Windows supports 2016, 2017, 2019, 2022, and 2025. Linux and macOS support 2019, 2022, and 2025.
 * `show-log` - Show logs, including docker logs, for troubleshooting
 * `edition` - SQL Server edition to install. Defaults to `Developer`. Linux and macOS containers accept `Developer`, `Evaluation`, `Express`, `Web`, `Standard`, `Enterprise`, `EnterpriseCore`, and (with SQL Server 2025) `StandardDeveloper`. Windows uses Developer media by default; paid editions require `product-key`. Evaluation, Express, and StandardDeveloper are not supported by the current Windows media.
 * `product-key` - Product key for a paid Windows edition. Supply it from a GitHub Actions secret. It is passed to SQL Server setup as `/PID`.
@@ -35,7 +35,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 For example, to run a Standard edition container without CEIP telemetry:
 
 ```yaml
-- uses: potatoqualitee/mssqlsuite@v1.11
+- uses: potatoqualitee/mssqlsuite@v2
   with:
     install: sqlengine
     edition: Standard
@@ -49,33 +49,29 @@ For a paid Windows installation, set `edition: Standard` and `product-key: ${{ s
 None
 
 **Notes:**
-- The `ssis` option is only supported on Windows runners. When specified, the action will ensure the SSISDB catalog exists (creating it if necessary).
-- **macOS Support Temporarily Disabled:** macOS runners are currently disabled in CI/CD due to Homebrew timeout issues with Docker/Colima installations. This may be re-enabled in the future once the underlying issues are resolved.
+- `ssis` is only supported on Windows runners. It also installs `sqlengine` and ensures the SSISDB catalog exists.
+- With `version: 2025`, the Windows `localdb` option installs SQL Server 2022 LocalDB because this action does not yet provide a 2025 LocalDB installer.
+- macOS runner tests are currently disabled because of Homebrew timeouts during Docker/Colima installation. macOS support is therefore unverified in CI.
 
 ### Details
 
-| Application | Keyword | OS | Details | Time |
-| -------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
-| SQL Engine | sqlengine | Linux | Docker container with SQL Server 2022, accessible at `localhost` | ~30s |
-| SqlLocalDB | localdb | Linux | Not supported | N/A |
-| Client Tools | sqlclient | Linux | Includes sqlcmd, bcp, and odbc drivers | ~15s |
-| sqlpackage | sqlpackage | Linux | Installed from web | ~5s |
-| Full-Text Search | fulltext | Linux | Installed using apt-get | ~45s |
-| SQL Engine | sqlengine | Windows | Full install of SQL Server 2022, accessible at `localhost`. Docker took like 15 minutes. Windows and SQL authentication both supported. | ~3m |
-| SqlLocalDB | localdb | Windows | Accessible at `(localdb)\MSSQLLocalDB` | ~30s |
-| Client Tools | sqlclient | Windows | Already included in runner, including sqlcmd, bcp, and odbc drivers | N/A |
-| sqlpackage | sqlpackage | Windows | Installed using chocolatey | ~20s |
-| Full-Text Search | fulltext | Windows | Enabled during SQL Engine install | ~1m |
-| SSIS (Integration Services) | ssis | Windows | Installs SQL Server Integration Services and creates the SSISDB catalog | ~2.5m |
-| SQL Engine | sqlengine | macOS | Docker container with SQL Server 2022 accessible at `localhost`. | ~7m |
-| SqlLocalDB | localdb | macOS | Not supported | N/A |
-| Client Tools | sqlclient | macOS | Includes bcp and odbc drivers | ~20s |
-| sqlpackage | sqlpackage | macOS | Installed from web | ~5s |
-| Full-Text Search | fulltext | macOS | Available only via Docker container with SQL Server (see SQL Engine above) | ~7m |
+| Application | Keyword | OS | Details |
+| --- | --- | --- | --- |
+| SQL Engine | `sqlengine` | Linux | Docker container for the selected version, accessible at `localhost` |
+| SQL Engine | `sqlengine` | Windows | Local SQL Server installation for the selected version, accessible at `localhost`; Windows and SQL authentication are supported |
+| SQL Engine | `sqlengine` | macOS | Docker container for the selected version, accessible at `localhost` |
+| Client Tools | `sqlclient` | Linux, macOS | Installs client tools including `bcp` and ODBC drivers |
+| Client Tools | `sqlclient` | Windows | Client tools are already included on the runner |
+| sqlpackage | `sqlpackage` | Linux, macOS | Downloaded from the web |
+| sqlpackage | `sqlpackage` | Windows | Installed using Chocolatey |
+| Full-Text Search | `fulltext` | Linux, macOS | Builds a Docker image with full-text search for the selected SQL Server version; use with `sqlengine` |
+| Full-Text Search | `fulltext` | Windows | Enabled during SQL Engine installation; use with `sqlengine` |
+| SqlLocalDB | `localdb` | Windows | Accessible at `(localdb)\MSSQLLocalDB` |
+| SSIS (Integration Services) | `ssis` | Windows | Installs Integration Services and creates the SSISDB catalog |
 
 ### Example workflows
 
-Create a SQL Server 2022 container and sqlpackage on Linux (the fastest runner, by far)
+Create a SQL Server 2022 container and install sqlpackage on Linux (omit `version` to use the default):
 
 ```yaml
 on: [push]
@@ -89,7 +85,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.11
+        uses: potatoqualitee/mssqlsuite@v2
         with:
           install: sqlengine, sqlpackage
 
@@ -97,32 +93,38 @@ jobs:
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
 ```
 
-Installing everything on all OSes, plus using a different sa password and collation
+To use SQL Server 2025 instead, set `version: 2025`:
 
 ```yaml
 on: [push]
 
 jobs:
-  test-everywhere:
-    name: Test Action on all platforms
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+  test-sql-2025:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: potatoqualitee/mssqlsuite@v2
+        with:
+          install: sqlengine, fulltext
+          version: 2025
+```
 
+Install SQL Server 2019 with full-text search, LocalDB, and SSIS on Windows, using a custom collation:
+
+```yaml
+on: [push]
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Run the action
-        uses: potatoqualitee/mssqlsuite@v1.11
+        uses: potatoqualitee/mssqlsuite@v2
         with:
           install: sqlengine, sqlclient, sqlpackage, localdb, fulltext, ssis
           version: 2019
-          sa-password: dbatools.I0
           show-log: true
           collation: Latin1_General_BIN
-
       - name: Run sqlcmd
         run: sqlcmd -S localhost -U sa -P dbatools.I0 -d tempdb -Q "SELECT @@version;" -C
 ```
@@ -141,7 +143,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run the action with custom admin
-        uses: potatoqualitee/mssqlsuite@v1.11
+        uses: potatoqualitee/mssqlsuite@v2
         with:
           install: sqlengine, sqlclient
           admin-username: dbadmin
@@ -181,7 +183,7 @@ The `SqlServer` PowerShell module is included on the Windows runner. You can fin
 **Example:**
 ```yaml
     - name: Install SQL Server with SSIS
-      uses: potatoqualitee/mssqlsuite@v1.11
+      uses: potatoqualitee/mssqlsuite@v2
       with:
         install: sqlengine, ssis
 ```
