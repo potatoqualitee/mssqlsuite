@@ -6,6 +6,8 @@ param (
     [ValidateNotNullOrEmpty()]
     [string]$SaPassword,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
+    [string]$Edition = "Developer",
+    [switch]$DisableTelemetry,
     [switch]$FullText,
     [switch]$ShowLog,
     [ValidateRange(1, 120)]
@@ -40,6 +42,10 @@ function Write-SqlContainerDiagnostics {
     }
 }
 
+if ($DisableTelemetry -and $Edition -in "Developer", "Express", "StandardDeveloper") {
+    throw "Telemetry cannot be disabled for the $Edition edition of SQL Server."
+}
+
 try {
     if ($FullText) {
         $dockerfile = Join-Path $PSScriptRoot "Dockerfile-$Version"
@@ -52,7 +58,22 @@ try {
         $image = "mcr.microsoft.com/mssql/server:$Version-latest"
     }
 
-    docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$SaPassword" -e "MSSQL_COLLATION=$Collation" --name sql -p 1433:1433 -d $image
+    $runArgs = @(
+        "run", "-e", "ACCEPT_EULA=Y",
+        "-e", "MSSQL_SA_PASSWORD=$SaPassword",
+        "-e", "MSSQL_COLLATION=$Collation",
+        "-e", "MSSQL_PID=$Edition"
+    )
+    if ($DisableTelemetry) {
+        # A startup configuration avoids a post-start restart and ensures the setting is in effect immediately.
+        $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+        $configDir = Join-Path $tempRoot "mssqlsuite-$([guid]::NewGuid().ToString('N'))"
+        $null = New-Item -ItemType Directory -Path $configDir -Force
+        @("[telemetry]", "customerfeedback = false") | Set-Content -LiteralPath (Join-Path $configDir "mssql.conf")
+        $runArgs += @("--mount", "type=bind,source=$(Join-Path $configDir "mssql.conf"),target=/var/opt/mssql/mssql.conf,readonly")
+    }
+    $runArgs += @("--name", "sql", "-p", "1433:1433", "-d", $image)
+    docker @runArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Docker container start failed with exit code $LASTEXITCODE."
     }

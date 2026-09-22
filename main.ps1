@@ -6,12 +6,42 @@ param (
     [switch]$ShowLog,
     [string]$Collation = "SQL_Latin1_General_CP1_CI_AS",
     [ValidateSet("2025", "2022", "2019", "2017", "2016")]
-    [string]$Version = "2022"
+    [string]$Version = "2022",
+    [string]$Edition = "Developer",
+    [string]$ProductKey,
+    [switch]$DisableTelemetry
 )
 if (-not $isLinux -and -not $Ismacos -and -not $IsWindows) {
     # its powershell
     $isWindows = $true
 }
+$editionNames = @("Developer", "Evaluation", "Express", "Web", "Standard", "Enterprise", "EnterpriseCore", "StandardDeveloper")
+$isProductKey = $ProductKey -match '^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$'
+if ($Edition -notin $editionNames) {
+    throw "Invalid SQL Server edition '$Edition'. Use a supported edition name."
+}
+if ($ProductKey -and -not $isProductKey) {
+    throw "The product key must contain five groups of five letters or numbers."
+}
+if ($ProductKey -and $Edition -eq "Developer") {
+    throw "Specify the paid edition together with product-key."
+}
+if ($ProductKey -and -not $IsWindows) {
+    throw "The product-key input is supported only for Windows installations."
+}
+if ($Edition -eq "StandardDeveloper" -and $Version -ne "2025") {
+    throw "StandardDeveloper is only supported with SQL Server 2025."
+}
+if ($DisableTelemetry -and $Edition -in "Developer", "Express", "StandardDeveloper") {
+    throw "Telemetry cannot be disabled for the $Edition edition of SQL Server."
+}
+if ($IsWindows -and $Edition -in "Evaluation", "Express", "StandardDeveloper" -and "sqlengine" -in $Install) {
+    throw "Windows setup currently uses Developer media and does not support the $Edition edition."
+}
+if ($IsWindows -and $Edition -ne "Developer" -and -not $ProductKey -and "sqlengine" -in $Install) {
+    throw "Windows installation of a non-Developer edition requires the product-key input."
+}
+
 # Warn if SSIS is requested on unsupported OS
 if (("ssis" -in $Install) -and ($islinux -or $ismacos)) {
     Write-Warning "The 'ssis' option is only supported on Windows. Skipping SSIS installation."
@@ -80,7 +110,7 @@ if ("sqlengine" -in $Install) {
 
     if ($ismacos -or $islinux) {
         Write-Output "linux/mac detected, downloading the docker container"
-        & "$PSScriptRoot/Start-SqlContainer.ps1" -Version $Version -SaPassword $SaPassword -Collation $Collation -FullText:("fulltext" -in $Install) -ShowLog:$ShowLog
+        & "$PSScriptRoot/Start-SqlContainer.ps1" -Version $Version -SaPassword $SaPassword -Collation $Collation -FullText:("fulltext" -in $Install) -ShowLog:$ShowLog -Edition $Edition -DisableTelemetry:$DisableTelemetry
 
         # Rename sa user if custom admin username is specified
         if ($AdminUsername -ne "sa") {
@@ -150,7 +180,9 @@ if ("sqlengine" -in $Install) {
             "/SQLCOLLATION=$Collation"
         )
 
-        Write-Warning "INSTALL ARGS: $installArgs"
+        if ($isProductKey) {
+            $installArgs += "/PID=$ProductKey"
+        }
 
         if ($boxUri -eq "") {
             # For 2017 & 2025.
@@ -175,6 +207,10 @@ if ("sqlengine" -in $Install) {
         # Runs SQL Server installation
         Start-Process -FilePath ".\setup\setup.exe" -ArgumentList $installArgs -Wait -NoNewWindow
 
+        if ($DisableTelemetry) {
+            # Microsoft supports opting out through CustomerFeedback, but not disabling the CEIP service.
+            Set-ItemProperty -Path "HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\CPE" -Name CustomerFeedback -Value 0
+        }
         Set-ItemProperty -path "HKLM:\Software\Microsoft\Microsoft SQL Server\MSSQL$versionMajor.MSSQLSERVER\MSSQLSERVER\" -Name LoginMode -Value 2
         Restart-Service MSSQLSERVER
         sqlcmd -S localhost -q "ALTER LOGIN [sa] WITH PASSWORD=N'$SaPassword'" -C
